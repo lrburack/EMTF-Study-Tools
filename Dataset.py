@@ -1,8 +1,181 @@
 import os
 import ROOT
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple
 from datetime import datetime
+
+Run3TrainingVariables = {
+    ## 4-station tracks
+
+    # BASELINE mode 15 - dPhi12/23/34 + combos, theta, FR1, St1 ring, dTh14, bend1, RPC 1/2/3/4
+    '15' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_12',
+        'dPhi_23',
+        'dPhi_34',
+        'dPhi_13',
+        'dPhi_14',
+        'dPhi_24',
+        'FR_1',
+        'bend_1',
+        'dPhiSum4',
+        'dPhiSum4A',
+        'dPhiSum3',
+        'dPhiSum3A',
+        'outStPhi',
+        'dTh_14',
+        'RPC_1',
+        'RPC_2',
+        'RPC_3',
+        'RPC_4',
+    ],
+
+    ## 3-station tracks
+
+    # BASELINE mode 14 - dPhi12/23/13, theta, FR1/2, St1 ring, dTh13, bend1, RPC 1/2/3
+    '14' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_12',
+        'dPhi_23',
+        'dPhi_13',
+        'FR_1',
+        'FR_2',
+        'bend_1',
+        'dTh_13',
+        'RPC_1',
+        'RPC_2',
+        'RPC_3',
+    ],
+    # BASELINE mode 13 - dPhi12/24/14, theta, FR1/2, St1 ring, dTh14, bend1, RPC 1/2/4
+    '13' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_12',
+        'dPhi_14',
+        'dPhi_24',
+        'FR_1',
+        'FR_2',
+        'bend_1',
+        'dTh_14',
+        'RPC_1',
+        'RPC_2',
+        'RPC_4',
+    ],
+    # BASELINE mode 11 - dPhi13/34/14, theta, FR1/3, St1 ring, dTh14, bend1, RPC 1/3/4
+    '11' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_34',
+        'dPhi_13',
+        'dPhi_14',
+        'FR_1',
+        'FR_3',
+        'bend_1',
+        'dTh_14',
+        'RPC_1',
+        'RPC_3',
+        'RPC_4',
+    ],
+    # BASELINE mode  7 - dPhi23/34/24, theta, FR2, dTh24, bend2, RPC 2/3/4
+    '7' : [
+        'theta',
+        'dPhi_23',
+        'dPhi_34',
+        'dPhi_24',
+        'FR_2',
+        'bend_2',
+        'dTh_24',
+        'RPC_2',
+        'RPC_3',
+        'RPC_4',
+    ],
+
+    ## 2-station tracks
+
+    # BASELINE mode 12 - dPhi12, theta, FR1/2, St1 ring, dTh12, bend1/2, RPC 1/2
+    '12' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_12',
+        'FR_1',
+        'FR_2',
+        'bend_1',
+        'bend_2',
+        'dTh_12',
+        'RPC_1',
+        'RPC_2',
+    ],
+    # BASELINE mode 10 - dPhi13, theta, FR1/3, St1 ring, dTh13, bend1/3, RPC 1/3
+    '10' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_13',
+        'FR_1',
+        'FR_3',
+        'bend_1',
+        'bend_3',
+        'dTh_13',
+        'RPC_1',
+        'RPC_3',
+    ],
+    # BASELINE mode  9 - dPhi14, theta, FR1/4, St1 ring, dTh14, bend1/4, RPC 1/4
+    '9' : [
+        'theta',
+        'st1_ring2',
+        'dPhi_14',
+        'FR_1',
+        'FR_4',
+        'bend_1',
+        'bend_4',
+        'dTh_14',
+        'RPC_1',
+        'RPC_4',
+    ],
+    # BASELINE mode  6 - dPhi23, theta, FR2/3, dTh23, bend2/3, RPC 2/3
+    '6' : [
+        'theta',
+        'dPhi_23',
+        'FR_2',
+        'FR_3',
+        'bend_2',
+        'bend_3',
+        'dTh_23',
+        'RPC_2',
+        'RPC_3',
+    ],
+    # BASELINE mode  5 - dPhi24, theta, FR2/4, dTh24, bend2/4, RPC 2/4
+    '5' : [
+        'theta',
+        'dPhi_24',
+        'FR_2',
+        'FR_4',
+        'bend_2',
+        'bend_4',
+        'dTh_24',
+        'RPC_2',
+        'RPC_4',
+    ],
+    # BASELINE mode  3 - dPhi34, theta, FR3/4, dTh34, bend3/4, RPC 3/4
+    '3' : [
+        'theta',
+        'dPhi_34',
+        'FR_3',
+        'FR_4',
+        'bend_3',
+        'bend_4',
+        'dTh_34',
+        'RPC_3',
+        'RPC_4',
+    ],
+    # Null track, for testing EMTF performance
+    '0' : [
+        'theta',
+        'RPC_3',
+        'RPC_4',
+    ],
+}
 
 #station-station transitions for delta phi's and theta's
 TRANSITION_NAMES = ["12", "13", "14", "23", "24", "34"]
@@ -29,7 +202,7 @@ STATION_TRANSITION_MAP = np.array([
 OUTSTATION_TRANSITION_MAP = np.array([
     [3, 4, 5],
     [1, 2, 5],
-    [0, 1, 4],
+    [0, 2, 4],
     [0, 1, 3]
 ])
 
@@ -59,7 +232,6 @@ class TrainingVariable:
 
         # Assigned by Dataset class
         self.feature_inds = None
-        self.entry_reference = None
         self.shared_reference = None
 
     def configure(self):
@@ -94,7 +266,7 @@ class SharedInfo:
         self.stations = np.where(self.station_presence)[0] # note that these these are shifted to be zero indexed (-1 from station number)
         self.transition_inds = transitions_from_mode(mode)
         self.track = None
-        self.hitrefs = np.zeros(len(self.station_presence), dtype='uint8')
+        self.hitrefs = np.zeros(len(self.station_presence), dtype=int)
 
         # Set by the Dataset constructor
         self.feature_names = None
@@ -115,14 +287,20 @@ class SharedInfo:
         # hitref is used to associate hit information with a partiuclar hit in a track 
         # emtfTrack_hitref<i>[j] tells you where to find information about a hit in station i for track j
         # Yes, this is ugly, however for performance its quite important to eliminate the use of strings for indexing the root file
-        if self.station_presence[0]:
-            self.hitrefs[0] = event['EMTFNtuple'].emtfTrack_hitref1[self.track]
-        if self.station_presence[1]:
-            self.hitrefs[1] = event['EMTFNtuple'].emtfTrack_hitref2[self.track]
-        if self.station_presence[2]:
-            self.hitrefs[2] = event['EMTFNtuple'].emtfTrack_hitref3[self.track]
-        if self.station_presence[3]:
-            self.hitrefs[3] = event['EMTFNtuple'].emtfTrack_hitref4[self.track]
+        # if self.station_presence[0]:
+        #     self.hitrefs[0] = event['EMTFNtuple'].emtfTrack_hitref1[self.track]
+        # if self.station_presence[1]:
+        #     self.hitrefs[1] = event['EMTFNtuple'].emtfTrack_hitref2[self.track]
+        # if self.station_presence[2]:
+        #     self.hitrefs[2] = event['EMTFNtuple'].emtfTrack_hitref3[self.track]
+        # if self.station_presence[3]:
+        #     self.hitrefs[3] = event['EMTFNtuple'].emtfTrack_hitref4[self.track]
+        self.hitrefs = np.array([
+            event['EMTFNtuple'].emtfTrack_hitref1[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref2[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref3[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref4[self.track],
+        ], dtype=int)
 
     @classmethod
     def for_mode(cls, mode):
@@ -131,7 +309,15 @@ class SharedInfo:
 
 # -------------------------------    Dataset Definition    -----------------------------------
 class Dataset:
-    def __init__(self, variables : List[TrainingVariable], filters : Optional[List[EventFilter]] = [], shared_info : SharedInfo = None, compress : bool=False):
+    def __init__(self, variables: List[TrainingVariable], filters: Optional[List[EventFilter]] = [], shared_info: SharedInfo = None, compress: bool = False) -> 'Dataset':
+        """
+        Initializes the Dataset object with the specified training variables, filters, shared information, and compress option.
+
+        :param variables: List of TrainingVariable objects defining the features used in the dataset.
+        :param filters: Optional list of EventFilter objects for filtering the dataset. Defaults to an empty list.
+        :param shared_info: SharedInfo object that provides shared information across different variables. If None, a new SharedInfo object is created.
+        :param compress: Boolean indicating whether or not to compress the dataset. Defaults to False.
+        """
         self.filters = filters
         self.variables = variables
         self.compress = compress
@@ -139,19 +325,15 @@ class Dataset:
         self.feature_names = []
         for variable in self.variables:
             self.feature_names.extend(variable.feature_names)
+            for feature in variable.feature_dependencies:
+                if feature not in self.feature_names:
+                    raise Exception(f"{type(variable)} is missing feature dependency {feature}. Current features: {self.feature_names}")
         self.num_features = len(self.feature_names)
         self.trainable_features = np.array([not feature_name.startswith("gen") for feature_name in self.feature_names], dtype='bool')
 
-        # Check that each variable has all its required feature dependencies
-        for variable in self.variables:
-            for feature in variable.feature_dependencies:
-                if feature not in self.feature_names:
-                    raise Exception(str(type(variable)) + " is missing feature dependency " + feature)
-
-        # This entry variable will be updated for each event. By initializing it now, rather than creating a new array for each event, we save a lot of time
         self.entry = np.zeros(self.num_features, dtype='float32')
 
-        if shared_info == None:
+        if shared_info is None:
             self.shared_info = SharedInfo()
         else:
             self.shared_info = shared_info
@@ -161,54 +343,60 @@ class Dataset:
 
         start_ind = 0
         for variable in self.variables:
-            # Give all variables access to the entry so they can use the work of previous variables
             variable.shared_reference = self.shared_info
-            # Directly pass the slice within the entry array in which each variable class will deposit features
-            variable.feature_inds = self.entry[start_ind : start_ind + len(variable.feature_names)]
-
-            # The way variables are calculated generally depends on the mode and other shared info
-            # Once the shared info is shared, we will give the variable a chance 
-            # to cache some precalculated information based on the mode
+            variable.feature_inds = self.entry[start_ind:start_ind + len(variable.feature_names)]
             variable.configure()
-
             start_ind += len(variable.feature_names)
-        
-        # Assigned when generate_dataset is called
+
         self.data = None
         self.filtered = None
 
-    
-    def apply_filters(self, event, shared_info):
-        # Return true if the event should be kept
+    def apply_filters(self, event: dict, shared_info: SharedInfo) -> bool:
+        """
+        Applies all event filters to determine if an event should be kept or filtered out.
+
+        :param event: The event data to be evaluated by the filters.
+        :param shared_info: SharedInfo object that provides shared information to the filters.
+        :return: True if the event passes all filters, False if it is filtered out.
+        """
         for filter in self.filters:
             if not filter.filter(event, shared_info):
                 return False
             
         return True
 
-    def process_event(self, event):
+    def process_event(self, event: dict) -> np.ndarray:
+        """
+        Processes a single event by calculating the values for each variable and storing the results in the dataset's entry.
+
+        :param event: The event data to be processed.
+        :return: A numpy array representing the processed feature values for the event.
+        """
         self.entry.fill(0)
         
         for i, variable in enumerate(self.variables):
-            # Each variable will asign its features in entry
-            variable.calculate(event)  # Perform the calculation
+            variable.calculate(event)
 
-        if self.compress:
-            for variable in self.variables:
+            if self.compress:
                 variable.compress(event)
 
         return self.entry
     
-    def build_dataset(self, raw_data):
+    def build_dataset(self, raw_data: dict) -> np.ndarray:
+        """
+        Builds the dataset by processing events from the raw input data and applying filters.
+
+        :param raw_data: A dictionary where keys are tree names and values are data trees (ROOT TChain objects).
+        :return: A numpy array containing the processed data for all events that pass the filters. 
+                 Rows corresponding to filtered events will contain only zeros.
+        """
         tree_names = list(raw_data.keys())
 
-        # Check that all required trees exist in the input data
         for variable in self.variables:
             for source in variable.tree_sources:
                 if source not in tree_names:
-                    raise Exception(str(type(variable)) + " requires source " + source + " which is not present in the input data.\n Input data has " + str(tree_names))
+                    raise Exception(f"{type(variable)} requires source {source} which is not present in the input data. Input data has {tree_names}")
 
-        # Check that all the trees have the same number of entries
         event_count = raw_data[tree_names[0]].GetEntries()
         for tree in tree_names[1:]:
             if raw_data[tree].GetEntries() != event_count:
@@ -221,15 +409,12 @@ class Dataset:
             if event_num % PRINT_EVENT == 0:
                 print("* " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\t| Processing event #" + str(event_num))
                 print("\t* Trainable event #" + str(np.sum(self.filtered)))
-            # Get the current event from each tree.
-            # These root objects work in an interesting way. 
-            # By calling GetEntry(i) on the entire TChain, the properties associated with that entry become accessible from the TChain object
+            
             for name in tree_names:
                 raw_data[name].GetEntry(event_num)
 
             self.shared_info.calculate(raw_data)
 
-            # apply_filters returns false if the event should be filtered
             if not self.apply_filters(raw_data, self.shared_info):
                 continue
 
@@ -238,78 +423,128 @@ class Dataset:
 
         return self.data
     
-    def __str__(self):
-        print("Dataset object with features: " + self.feature_names)
+    def get_features(self, features: Union[str, List[str]], filtered: bool = True) -> np.ndarray:
+        """
+        Retrieves the specified features from the dataset.
 
-    def randomize_event_order(self):
+        :param features: A string or a list of feature names to retrieve.
+        :param filtered: Boolean indicating whether to retrieve features from only filtered events (default is True).
+        :return: A numpy array containing the requested features.
+        """
+        features = np.array([features]) if isinstance(features, str) else np.array(features) 
+        for feature in features:
+            if feature not in self.feature_names:
+                raise Exception(f"{feature} is not a feature in this dataset.")
+        
+        if filtered:
+            data = self.data[self.filtered]
+        else:
+            data = self.data
+        
+        return np.array(data[:, np.isin(np.array(self.feature_names), features)])
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the Dataset object, listing all feature names.
+
+        :return: A string describing the Dataset object with its features.
+        """
+        return "Dataset object with features: " + ", ".join(self.feature_names)
+
+    def randomize_event_order(self) -> None:
+        """
+        Randomizes the order of events in the dataset. This affects both the data and the filtered event mask.
+        
+        :return: None
+        """
         permutation_inds = np.random.permutation(len(self.data))
         self.data = self.data[permutation_inds]
         self.filtered = self.filtered[permutation_inds]
 
     @staticmethod
-    def get_root(base_dirs, files_per_endcap):
+    def get_root(base_dirs: List[str], files_per_endcap: int) -> Tuple[dict, List[str]]:
         """
-        Function to dynamically load TChain objects for all trees in root files,
-        concatenating trees within each directory into a single TChain.
-        
-        Parameters:
-        base_dirs (list): List of base directories containing root files.
-        files_per_endcap (int): Maximum number of files to load for each endcap.
+        Builds a dictionary usable by the Dataset class from EMTFNtuple ROOT files. The dictionary key names correspond 
+        to the names of trees (e.g., "EMTFNtuple", "MuShowerNtuple"), and each one contains a TChain object.
 
-        Returns:
-        dict: Dictionary where keys are directory names, 
-            and values are TChain objects with concatenated trees.
+        :param base_dirs: List of base directories containing ROOT files.
+        :param files_per_endcap: Maximum number of files to load for each endcap.
+        :return: A tuple containing:
+                 - A dictionary where the keys are tree names (e.g., "EMTFNtuple", "MuShowerNtuple"), 
+                   and the values are TChain objects with concatenated trees.
+                 - A list of file names that were successfully loaded.
         """
-        event_data = {}  # Dictionary to store TChains for each directory
+        event_data = {}
+        file_names = []
 
-        # Iterate through each base directory
         for base_dir in base_dirs:
             nFiles = 0
             break_loop = False
             
-            # Recursively traverse through the directory structure
             for dirname, dirs, files in os.walk(base_dir):
                 if break_loop: break
                 for file in files:
                     if break_loop: break
-                    if not file.endswith('.root'): continue  # Only process root files
+                    if not file.endswith('.root'): continue
                     
                     file_name = os.path.join(dirname, file)
-                    nFiles += 1
-                    print(f'* Loading file #{nFiles}: {file_name}')
                     
-                    # Open the ROOT file
                     root_file = ROOT.TFile.Open(file_name)
                     if not root_file or root_file.IsZombie():
                         print(f"Warning: Failed to open {file_name}")
                         continue
+                    
+                    nFiles += 1
+                    print(f'* Loading file #{nFiles}: {file_name}')
+                    file_names.append(file_name)
 
-                    # Loop through directories in the ROOT file
                     for key in root_file.GetListOfKeys():
                         obj = key.ReadObj()
 
-                        # Check if it's a directory
                         if obj.InheritsFrom("TDirectory"):
-                            dir_name = obj.GetName()  # Get the directory name
+                            dir_name = obj.GetName()
 
-                            # Add the specific tree from this directory to a TChain
-                            tree_name = "tree"  # Assuming the tree name is 'tree' as per original code
+                            tree_name = "tree"
                             tree_chain_name = f"{dir_name}/{tree_name}"
 
-                            # Initialize a TChain for this directory if not already present
                             if dir_name not in event_data:
                                 event_data[dir_name] = ROOT.TChain(f"{tree_chain_name}")
 
-                            # Add the file to the TChain
                             event_data[dir_name].Add(f"{file_name}/{tree_chain_name}")
 
                     root_file.Close()
 
-                    # Break the loop if the maximum number of files is reached
                     if nFiles >= files_per_endcap:
                         break_loop = True
 
-        return event_data
+        return event_data, file_names
+    
+    @classmethod
+    def combine(cls, datasets: List['Dataset']) -> 'Dataset':
+        """
+        Combines multiple Dataset objects into a single Dataset object. The datasets must have the same number of events.
+
+        :param datasets: A list of Dataset objects to be combined. All datasets must have the same number of events.
+        :return: A new Dataset object that contains the variables and filters from all input datasets, and the combined data.
+        """
+        dataset_size = len(datasets[0].data)
+
+        variables = []
+        filters = []
+        filtered = np.zeros(dataset_size, dtype='bool')
+        for dataset in datasets:
+            if len(dataset.data) != dataset_size:
+                raise Exception("Datasets must have matching lengths")
+
+            variables.extend(dataset.variables)
+            filters.extend(dataset.filters)
+            filtered = np.logical_or(filtered, dataset.filtered)
+        
+        new_dataset = cls(variables, filters = filters, shared_info=datasets[0].shared_info)
+        new_dataset.filtered = filtered
+        new_dataset.data = np.hstack([dataset.data for dataset in datasets])
+        return new_dataset
+
 
 # -------------------------------    Filter definitions    -----------------------------------
 class HasModeFilter(EventFilter):
@@ -350,7 +585,21 @@ class Theta(TrainingVariable):
         
     def calculate(self, event):
         self.feature_inds[0] = event['EMTFNtuple'].emtfHit_emtf_theta[int(self.shared_reference.hitrefs[self.theta_station])]
-    
+
+    def compress(self, event):
+        theta = self.feature_inds[0]
+        if self.shared_reference.mode == 15:
+            if event['EMTFNtuple'].emtfTrack_ptLUT_st1_ring2[self.shared_reference.track] == 0:
+                theta = (min(max(theta, 5), 52) - 5) / 6
+            else:
+                theta = ((min(max(theta, 46), 87) - 46) / 7) + 8
+        else: 
+            if event['EMTFNtuple'].emtfTrack_ptLUT_st1_ring2[self.shared_reference.track] == 0: 
+                theta = (max(theta, 1) - 1) / 4
+            else: 
+                theta = ((min(theta, 104) - 1) / 4) + 6
+        self.feature_inds[0] = int(theta)
+
     @classmethod
     def for_mode(cls, mode):
         # The theta value we use is always the theta in the first station that is not station 1.
@@ -367,11 +616,40 @@ class St1_Ring2(TrainingVariable):
 
 
 class dPhi(TrainingVariable):
+    # Used for compression
+    NLBMap_4bit_256Max = [0, 1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 25, 31, 46, 68, 136]
+    NLBMap_5bit_256Max = [0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 23, 25, 28, 31, 34, 39, 46, 55, 68, 91, 136]
+    NLBMap_7bit_512Max = [
+        0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,
+        22,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,
+        44,  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  65,
+        66,  67,  68,  69,  71,  72,  73,  74,  75,  76,  77,  79,  80,  81,  83,  84,  86,  87,  89,  91,  92,  94,
+        96,  98,  100, 102, 105, 107, 110, 112, 115, 118, 121, 124, 127, 131, 135, 138, 143, 147, 152, 157, 162, 168,
+        174, 181, 188, 196, 204, 214, 224, 235, 247, 261, 276, 294, 313, 336, 361, 391, 427, 470]
+
     def __init__(self, transition_inds):
         self.transition_inds = transition_inds
         # dPhi is defined by two stations, so which dPhi's we train on depends on the mode
         features = ["dPhi_" + TRANSITION_NAMES[ind] for ind in transition_inds]
         super().__init__(features, tree_sources=["EMTFNtuple"])
+
+        self.nBitsA = 7
+        self.nBitsB = 7
+        self.nBitsC = 7
+        self.maxA = 512
+        self.maxB = 512
+        self.maxC = 512
+
+    def configure(self):
+        mode = self.shared_reference.mode
+        if mode == 7 or mode == 11 or mode > 12:
+            self.nBitsB = 5
+            self.maxB = 256
+            self.nBitsC = 5
+            self.maxC = 256
+        if mode == 15:
+            self.nBitsC = 4
+            self.maxC = 256
 
     def calculate(self, event):
         # for feature_ind, transition_ind in enumerate(self.transition_inds):
@@ -386,15 +664,76 @@ class dPhi(TrainingVariable):
         
         # Multiply deltaPh by sign using NumPy array operations
         self.feature_inds[:] = deltaPh[self.transition_inds] * signs * signs[0]
-        
+    
+    def compress(self, event):
+        dphi = 0
+        mode = self.shared_reference.mode
+
+        for feature_ind, transition_ind in enumerate(self.transition_inds):
+            dphi = self.feature_inds[feature_ind]
+            if transition_ind == 3:
+                if mode == 7:
+                    dphi = dPhi.getNLBdPhi(dphi, self.nBitsA, self.maxA)
+                else:
+                    dphi = dPhi.getNLBdPhi(dphi, self.nBitsB, self.maxB)
+            elif transition_ind == 4:
+                dphi = dPhi.getNLBdPhi(dphi, self.nBitsB, self.maxB)
+            elif transition_ind == 5:
+                dphi = dPhi.getNLBdPhi(dphi, self.nBitsC, self.maxC)
+            else:
+                dphi = dPhi.getNLBdPhi(dphi, self.nBitsA, self.maxA)
+
+            self.feature_inds[feature_ind] = dphi
+
+        if mode == 15:
+            self.feature_inds[1] = self.feature_inds[0] + self.feature_inds[3]
+            self.feature_inds[2] = self.feature_inds[1] + self.feature_inds[5]
+            self.feature_inds[4] = self.feature_inds[3] + self.feature_inds[5]
+        elif mode == 14:
+            self.feature_inds[1] = self.feature_inds[0] + self.feature_inds[2]
+        elif mode == 13:
+            self.feature_inds[1] = self.feature_inds[0] + self.feature_inds[2]
+        elif mode == 11:
+            self.feature_inds[1] = self.feature_inds[0] + self.feature_inds[2]
+        elif mode == 7:
+            self.feature_inds[1] = self.feature_inds[0] + self.feature_inds[2]
+
     @classmethod
     def for_mode(cls, mode):
         return cls(transitions_from_mode(mode))
+    
+    @classmethod
+    def getNLBdPhi(cls, dphi, bits, max):
+        dphi_ = max
+        sign_ = 1
+        if dphi < 0:
+            sign_ = -1
+        dphi = sign_ * dphi
+
+        if max == 256:
+            if bits == 4:
+                dphi_ = dPhi.NLBMap_4bit_256Max[(1 << bits) - 1]
+                for edge in range ((1 << bits) - 1):
+                    if dPhi.NLBMap_4bit_256Max[edge] <= dphi and dPhi.NLBMap_4bit_256Max[edge + 1] > dphi:
+                        dphi_= dPhi.NLBMap_4bit_256Max[edge]
+            if bits == 5:
+                dphi_ = dPhi.NLBMap_5bit_256Max[(1 << bits) - 1]
+                for edge in range((1 << bits) - 1):
+                    if dPhi.NLBMap_5bit_256Max[edge] <= dphi and dPhi.NLBMap_5bit_256Max[edge + 1] > dphi:
+                        dphi_ = dPhi.NLBMap_5bit_256Max[edge]
+        elif max == 512:
+            if bits == 7:
+                dphi_ = dPhi.NLBMap_7bit_512Max[(1 << bits) - 1]
+                for edge in range((1 << bits) - 1):
+                    if dPhi.NLBMap_7bit_512Max[edge] <= dphi and dPhi.NLBMap_7bit_512Max[edge + 1] > dphi:
+                        dphi_ = dPhi.NLBMap_7bit_512Max[edge]
+
+
+        return sign_ * dphi_
 
 
 class dTh(TrainingVariable):
-    # Which transitions to use depending on the mode (based on dTh)
-    # Which transitions to use depending on the mode (based on dTh)
+    # Use the dTh between the furthest apart stations.
     mode_transition_map = {
         15: [2],  # Mode 15 uses dTh_14, so transition 14 (index 2)
         14: [1],  # Mode 14 uses dTh_13, so transition 13 (index 1)
@@ -425,6 +764,27 @@ class dTh(TrainingVariable):
         
         # # Use vectorized NumPy operations to calculate the dTheta for all transitions
         # self.feature_inds[:] = theta_vals[hitrefs[TRANSITION_MAP[self.transition_inds, 1]]] - theta_vals[hitrefs[TRANSITION_MAP[self.transition_inds, 0]]]
+
+    def compress(self, event):
+        for feature_ind, transition_ind in enumerate(self.transition_inds):
+            dTheta = self.feature_inds[feature_ind]
+            if self.shared_reference.mode == 15:
+                if abs(dTheta) <= 1:
+                    dTheta = 2
+                elif abs(dTheta) <= 2:
+                    dTheta = 1
+                elif dTheta <= -3:
+                    dTheta = 0
+                else:
+                    dTheta = 3 
+            else:
+                if dTheta <= -4:
+                    dTheta = 0
+                elif -3 <= dTheta <= 2 : dTheta += 4
+                else: dTheta = 7
+
+            self.feature_inds[feature_ind] = dTheta
+
 
     @classmethod
     def for_mode(cls, mode):
@@ -465,17 +825,51 @@ class FR(TrainingVariable):
 class RPC(TrainingVariable):
     def __init__(self, stations):
         self.stations = stations
+        self.theta_ind = None
         features = ["RPC_" + str(station + 1) for station in stations]
-        super().__init__(features, tree_sources=["EMTFNtuple"])
+        super().__init__(features, feature_dependencies=["theta"], tree_sources=["EMTFNtuple"])
     
+    def configure(self):
+        self.theta_ind = self.shared_reference.feature_names.index("theta")
+
     def calculate(self, event):
-        # for feature_ind, station in enumerate(self.stations):
-        #     # An RPC was used if the pattern is zero
-        #     self.feature_inds[feature_ind] = event['EMTFNtuple'].emtfTrack_ptLUT_cpattern[int(self.shared_reference.track)][int(station)] == 0
-        # Convert the cpattern values to a NumPy array
+       # Convert the cpattern values to a NumPy array
         cpattern_vals = np.array(event['EMTFNtuple'].emtfTrack_ptLUT_cpattern[self.shared_reference.track])
         # Use vectorized NumPy operations to check if the pattern is zero (indicating RPC use)
         self.feature_inds[:] = cpattern_vals[self.stations] == 0
+
+    def compress(self, event):
+        mode = self.shared_reference.mode
+        if mode == 15 and event['EMTFNtuple'].emtfTrack_ptLUT_st1_ring2[self.shared_reference.track] == 0:
+            if self.shared_reference.entry_reference[self.theta_ind] < 4:
+                self.feature_inds[2] = 0
+                self.feature_inds[3] = 0
+
+        # The logic after this has to do with removing redundant RPC information if more than
+        # one RPC was used in building the track. We dont need to do this if there are less than 2 RPCs used
+        if np.sum(self.feature_inds) < 2:
+            return
+
+        # Its convenient to have this as a bool array
+        rpc = np.array(event['EMTFNtuple'].emtfTrack_ptLUT_cpattern[self.shared_reference.track])[self.stations] == 0
+
+        if mode == 15:
+            if rpc[0] and rpc[1]:
+                self.feature_inds[2] = 0
+                self.feature_inds[3] = 0
+            elif rpc[0] and rpc[2]:
+                self.feature_inds[3] = 0
+            elif rpc[3] and rpc[1]:
+                self.feature_inds[2] = 0
+            elif rpc[2] and rpc[3] and event['EMTFNtuple'].emtfTrack_ptLUT_st1_ring2[self.shared_reference.track] == 0:
+                self.feature_inds[2] = 0
+        else: # For 3 station only
+            # If the first RPC is present we dont care about the others
+            if rpc[0]:
+                self.feature_inds[1] = 0
+                self.feature_inds[2] = 0
+            elif rpc[2]:
+                self.feature_inds[1] = 0
 
     @classmethod
     def for_mode(cls, mode):
@@ -506,11 +900,84 @@ class Bend(TrainingVariable):
     def __init__(self, stations):
         self.stations = stations
         features = ["bend_" + str(station + 1) for station in stations]
-        super().__init__(features, tree_sources=["EMTFNtuple"])
+        feature_dependencies = ["RPC_" + str(station + 1) for station in stations]
+        super().__init__(features, feature_dependencies=feature_dependencies, tree_sources=["EMTFNtuple"])
+        
+        # Set by configure
+        self.nBits = None
+        self.RPC_inds = None
+
+    def configure(self):
+        mode = self.shared_reference.mode
+        self.nBits = 2 if mode == 7 or mode == 11 or mode > 12 else 3
+
+        self.RPC_inds = np.array([self.shared_reference.feature_names.index("RPC_" + str(station + 1)) for station in self.stations])
 
     def calculate(self, event):
         cpattern_vals = np.array(event['EMTFNtuple'].emtfTrack_ptLUT_cpattern[self.shared_reference.track])[self.stations]
         self.feature_inds[:] = Bend.pattern_bend_map[cpattern_vals] * -1 * event['EMTFNtuple'].emtfTrack_endcap[self.shared_reference.track]
+
+    def compress(self, event):
+        nBits = self.nBits
+
+        signs = np.array(event['EMTFNtuple'].emtfTrack_ptLUT_signPh[int(self.shared_reference.track)])        
+        signs = np.where(signs[self.shared_reference.transition_inds], 1, -1)
+        sign_ = event['EMTFNtuple'].emtfTrack_endcap[self.shared_reference.track] * -1 * signs[0]
+
+        for feature_ind, station in enumerate(self.stations):
+            pattern = event['EMTFNtuple'].emtfTrack_ptLUT_cpattern[self.shared_reference.track][station]
+
+            if nBits == 2:
+                if pattern == 10:
+                    clct_ = 1
+                elif pattern == 9:
+                    clct_ = 1 if sign_ > 0 else 2
+                elif pattern == 8:
+                    clct_ = 2 if sign_ > 0 else 1
+                elif pattern == 7:
+                    clct_ = 0 if sign_ > 0 else 3
+                elif pattern == 6:
+                    clct_ = 3 if sign_ > 0 else 0
+                elif pattern == 5:
+                    clct_ = 0 if sign_ > 0 else 3 
+                elif pattern == 4:
+                    clct_ = 3 if sign_ > 0 else 0
+                elif pattern == 3:
+                    clct_ = 0 if sign_ > 0 else 3
+                elif pattern == 2:
+                    clct_ = 3 if sign_ > 0 else 0
+                elif pattern == 1:
+                    clct_ = 0 if sign_ > 0 else 3
+                elif pattern == 0 and not self.shared_reference.entry_reference[self.RPC_inds[feature_ind]] == 1:
+                    clct_ = 0
+                else:
+                    clct_ = 1
+            elif nBits == 3:
+                if pattern == 10:
+                    clct_ = 4
+                elif pattern == 9:
+                    clct_ = 3 if sign_ > 0 else 5
+                elif pattern == 8:
+                    clct_ = 5 if sign_ > 0 else 3
+                elif pattern == 7:
+                    clct_ = 2 if sign_ > 0 else 6
+                elif pattern == 6:
+                    clct_ = 6 if sign_ > 0 else 2
+                elif pattern == 5:
+                    clct_ = 1 if sign_ > 0 else 7
+                elif pattern == 4:
+                    clct_ = 7 if sign_ > 0 else 1
+                elif pattern == 3:
+                    clct_ = 1 if sign_ > 0 else 7
+                elif pattern == 2:
+                    clct_ = 7 if sign_ > 0 else 1
+                elif pattern == 1:
+                    clct_ = 1 if sign_ > 0 else 7
+                elif pattern == 0:
+                    clct_ = 0
+                else:
+                    clct_ = 4
+            self.feature_inds[feature_ind] = clct_
 
     @classmethod
     def for_mode(cls, mode):
@@ -567,11 +1034,40 @@ class OutStPhi(dPhiSum):
 
     def calculate(self, event):
         dPhis = np.abs(self.shared_reference.entry_reference[self.dPhi_reference_inds])
-        self.station_deviations[0] = np.sum(dPhis[STATION_TRANSITION_MAP[0]])
-        self.station_deviations[1] = np.sum(dPhis[STATION_TRANSITION_MAP[1]])
-        self.station_deviations[2] = np.sum(dPhis[STATION_TRANSITION_MAP[2]])
-        self.station_deviations[3] = np.sum(dPhis[STATION_TRANSITION_MAP[3]])
-        self.feature_inds[0] = np.argmax(self.station_deviations)
+        self.station_deviations[:] = np.sum(dPhis[STATION_TRANSITION_MAP], axis=1)
+        max_deviation = np.max(self.station_deviations) == self.station_deviations
+
+        if np.sum(max_deviation) > 1:
+            self.feature_inds[0] = -1
+        else:
+            self.feature_inds[0] = np.argmax(max_deviation)
+
+    @classmethod
+    def for_mode(cls, mode):
+        if mode != 15:
+            raise Exception("dPhiSum3 is for mode 15 only")
+        return cls()
+
+
+class OutStPhi_ShowerInformed(dPhiSum):
+    def __init__(self):
+        super().__init__(TRANSITION_NAMES, feature_name="outStPhi")
+        self.station_deviations = np.zeros(4, dtype='float32')
+
+    def calculate(self, event):
+        if np.any(self.shared_reference.showers_on_track):
+            rightmost_true_col = np.max(np.where(self.shared_reference.showers_on_track)[1])
+            rows_with_true_in_col = np.where(self.shared_reference.showers_on_track[:, rightmost_true_col])[0]
+            self.feature_inds[0] = rows_with_true_in_col[0]
+        else:
+            dPhis = np.abs(self.shared_reference.entry_reference[self.dPhi_reference_inds])
+            self.station_deviations[:] = np.sum(dPhis[STATION_TRANSITION_MAP], axis=1)
+            max_deviation = np.max(self.station_deviations) == self.station_deviations
+
+            if np.sum(max_deviation) > 1:
+                self.feature_inds[0] = -1
+            else:
+                self.feature_inds[0] = np.argmax(max_deviation)
 
     @classmethod
     def for_mode(cls, mode):
@@ -591,9 +1087,12 @@ class dPhiSum3(dPhiSum):
         self.out_station_phi_reference = self.shared_reference.feature_names.index("outStPhi")
 
     def calculate(self, event):
+        out_station = int(self.shared_reference.entry_reference[self.out_station_phi_reference])
+        if out_station == -1:
+            out_station = 0
         self.feature_inds[0] = np.sum(
             self.shared_reference.entry_reference[self.dPhi_reference_inds[
-                OUTSTATION_TRANSITION_MAP[int(self.shared_reference.entry_reference[self.out_station_phi_reference])]
+                OUTSTATION_TRANSITION_MAP[out_station]
                 ]])
     
     @classmethod
@@ -601,7 +1100,8 @@ class dPhiSum3(dPhiSum):
         if mode != 15:
             raise Exception("dPhiSum3A is for mode 15 only")
         return cls()
-    
+
+
 class dPhiSum3A(dPhiSum):
     def __init__(self):
         super().__init__(TRANSITION_NAMES, feature_name="dPhiSum3A")
@@ -613,9 +1113,12 @@ class dPhiSum3A(dPhiSum):
         self.out_station_phi_reference = self.shared_reference.feature_names.index("outStPhi")
 
     def calculate(self, event):
+        out_station = int(self.shared_reference.entry_reference[self.out_station_phi_reference])
+        if out_station == -1:
+            out_station = 0
         self.feature_inds[0] = np.sum(np.abs(
             self.shared_reference.entry_reference[self.dPhi_reference_inds[
-                OUTSTATION_TRANSITION_MAP[int(self.shared_reference.entry_reference[self.out_station_phi_reference])]
+                OUTSTATION_TRANSITION_MAP[out_station]
                 ]]))
     
     @classmethod
@@ -626,13 +1129,95 @@ class dPhiSum3A(dPhiSum):
 
 # -------------------------------    Shower Stuff    -----------------------------------
 class ShowerBit(TrainingVariable):
-    def __init__(self, shower_threshold):
-        super().__init__(feature_names="shower_bit", tree_sources=['MuShowerNtuple'])
+    def __init__(self, shower_threshold = 1):
+        super().__init__(feature_names="shower_bit_thresh=" + str(shower_threshold), tree_sources=['MuShowerNtuple'])
         self.shower_threshold = shower_threshold
 
     def calculate(self, event):
         self.feature_inds[0] = event['MuShowerNtuple'].CSCShowerDigiSize >= self.shower_threshold
 
+
+class AllShower(TrainingVariable):
+    def __init__(self, stations):
+        feature_names = []
+        for station in stations + 1:
+            feature_names.extend(["loose_" + str(station), "nominal_" + str(station), "tight_" + str(station)])
+        super().__init__(feature_names=feature_names, tree_sources=['EMTFNtuple','MuShowerNtuple'])
+        self.stations = stations
+        self.showers_on_track = np.zeros((4, 3), dtype='bool')
+    
+    def configure(self):
+        self.shared_reference.showers_on_track = self.showers_on_track
+    
+    def calculate(self, event):
+        # This code block matches showers with hits along the track
+        # This array contains the shower information. The first axis corresponds to the station, the second axis corresponds to the shower type (0: loose, 1: nominal, 2: tight)
+        # Loop through each hit. We will check for a corresponding shower
+        self.showers_on_track.fill(0)
+
+        for station in self.stations:
+            hitref = int(self.shared_reference.hitrefs[station])
+
+            # Loop through each shower and see if it corresponds to a hit in the track
+            for i in range(event['MuShowerNtuple'].CSCShowerDigiSize):
+                # Check that the hit location matches the shower location
+                if (event['EMTFNtuple'].emtfHit_chamber[hitref] == event['MuShowerNtuple'].CSCShowerDigi_chamber[i] and 
+                    event['EMTFNtuple'].emtfHit_ring[hitref] == event['MuShowerNtuple'].CSCShowerDigi_ring[i] and 
+                    event['EMTFNtuple'].emtfHit_station[hitref] == event['MuShowerNtuple'].CSCShowerDigi_station[i] and 
+                    event['EMTFNtuple'].emtfHit_endcap[hitref] == event['MuShowerNtuple'].CSCShowerDigi_endcap[i]):
+                    # Add the shower information to the array
+                    self.showers_on_track[station, :] = np.array([int(event['MuShowerNtuple'].CSCShowerDigi_oneLoose[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneNominal[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneTight[i])]).T
+
+        for feature_num, station in enumerate(self.stations):
+            self.feature_inds[3 * feature_num : 3 * feature_num + 3] = self.showers_on_track[station, :]
+    
+    @classmethod
+    def for_mode(cls, mode):
+        return cls(np.where(get_station_presence(mode))[0])
+
+
+class ShowerCount(TrainingVariable):
+    valid_shower_types = ["loose", "nominal", "tight"]
+
+    def __init__(self, stations, shower_types):
+        for type in shower_types:
+            if type not in ShowerCount.valid_shower_types:
+                raise Exception(type + " is not a valid kind of shower")
+        feature_names = [shower_type + "_showerCount" for shower_type in shower_types]
+        super().__init__(feature_names=feature_names, tree_sources=['EMTFNtuple','MuShowerNtuple'])
+        self.stations = stations
+        self.shower_types = np.isin(np.array(ShowerCount.valid_shower_types), np.array(shower_types))
+    
+    def calculate(self, event):
+        # print("according to ShowerCount: " + str(self.shared_reference.showers_on_track))
+        self.feature_inds[:] = np.sum(self.shared_reference.showers_on_track, axis=0)[self.shower_types]
+
+class CarefulShowerBit(TrainingVariable):
+    def __init__(self, stations, shower_threshold = 1):
+        super().__init__(feature_names=["careful_shower_bit_thresh=" + str(shower_threshold)], tree_sources=['EMTFNtuple','MuShowerNtuple'])
+        self.stations = stations
+        self.shower_threshold = shower_threshold
+    
+    def calculate(self, event):          
+        self.feature_inds[0] = np.sum(self.shared_reference.showers_on_track[:, 0]) >= self.shower_threshold
+
+    @classmethod
+    def for_mode(cls, mode):
+        return cls(np.where(get_station_presence(mode))[0])
+
+
+class ShowerStationType(TrainingVariable):
+    def __init__(self, stations):
+        feature_names = ["shower_type_" + str(station) for station in stations]
+        super().__init__(feature_names=feature_names, tree_sources=['EMTFNtuple','MuShowerNtuple'])
+        self.stations = stations
+    
+    def calculate(self, event):          
+        self.feature_inds[:] = np.sum(self.shared_reference.showers_on_track[self.stations, :], axis=1)
+
+    @classmethod
+    def for_mode(cls, mode):
+        return cls(np.where(get_station_presence(mode))[0])
 
 # class OutStation(dPhiSum):
 #     def __init__(self):
