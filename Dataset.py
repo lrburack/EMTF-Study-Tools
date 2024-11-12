@@ -211,12 +211,16 @@ PRINT_EVENT = 100000
 def get_station_presence(mode):
     return np.unpackbits(np.array([mode], dtype='>i8').view(np.uint8)).astype(bool)[-4:]
 
+def stations(mode):
+    return np.where(get_station_presence(mode))[0]
+
 def transitions_from_mode(mode):
     # In the EMTFNtuple, dPhi and dTheta are 2D arrays. The first dimension is track. The second dimension is a 'transition index'
     # This transition index can be read as the index in this array: ["12", "13", "14", "23", "24", "34"]
     # For a particular mode, we want to know which of these transitions exists. This clever little array operation will get us this
     station_presence = get_station_presence(mode)
     return np.where(np.outer(station_presence, station_presence)[np.logical_not(np.tri(4))])[0]
+
 
 
 # -------------------------------    Superclass Definitions    -----------------------------------
@@ -258,15 +262,31 @@ class EventFilter:
     def filter(self, event, shared_info):
         return True
 
+class HasModeFilter(EventFilter):
+    def __init__(self):
+        super().__init__()
+        
+
+    def filter(self, event, shared_info):
+        return shared_info.track != None and event["EMTFNtuple"].emtfHit_size != 0
+
+class RecoMatchFilter(EventFilter):
+    def __init__(self, dR_match_max=0.4):
+        self.dR_match_max = dR_match_max
+        super().__init__()
+    
+    def filter(self, event, shared_info):
+        return shared_info.reco_match != None
 
 class SharedInfo:
-    def __init__(self, mode):
+    def __init__(self, mode, include_mode_15=True):
         self.mode = mode
         self.station_presence = get_station_presence(mode)
         self.stations = np.where(self.station_presence)[0] # note that these these are shifted to be zero indexed (-1 from station number)
         self.transition_inds = transitions_from_mode(mode)
         self.track = None
         self.hitrefs = np.zeros(len(self.station_presence), dtype=int)
+        self.include_mode_15 = include_mode_15
 
         # Set by the Dataset constructor
         self.feature_names = None
@@ -275,26 +295,16 @@ class SharedInfo:
     def calculate(self, event):
         self.track = None
         modes = np.array(event['EMTFNtuple'].emtfTrack_mode)
-        if modes.size == 0:
-            return
-        good_track_inds = np.where((modes == self.mode) | (modes == 15))[0]
-
+        if self.include_mode_15:
+            good_track_inds = np.where((modes == self.mode) | (modes == 15))[0]
+        else:
+            good_track_inds = np.where((modes == self.mode))[0]
+        
         if good_track_inds.size == 0:
             return
         
         self.track = int(good_track_inds[0])
         
-        # hitref is used to associate hit information with a partiuclar hit in a track 
-        # emtfTrack_hitref<i>[j] tells you where to find information about a hit in station i for track j
-        # Yes, this is ugly, however for performance its quite important to eliminate the use of strings for indexing the root file
-        # if self.station_presence[0]:
-        #     self.hitrefs[0] = event['EMTFNtuple'].emtfTrack_hitref1[self.track]
-        # if self.station_presence[1]:
-        #     self.hitrefs[1] = event['EMTFNtuple'].emtfTrack_hitref2[self.track]
-        # if self.station_presence[2]:
-        #     self.hitrefs[2] = event['EMTFNtuple'].emtfTrack_hitref3[self.track]
-        # if self.station_presence[3]:
-        #     self.hitrefs[3] = event['EMTFNtuple'].emtfTrack_hitref4[self.track]
         self.hitrefs = np.array([
             event['EMTFNtuple'].emtfTrack_hitref1[self.track],
             event['EMTFNtuple'].emtfTrack_hitref2[self.track],
@@ -306,6 +316,42 @@ class SharedInfo:
     def for_mode(cls, mode):
         return cls(mode)
 
+class RecoSharedInfo(SharedInfo):
+    def __init__(self, mode, dR_match_max=0.4):
+        self.dR_match_max = dR_match_max
+        self.reco_match = None
+        super().__init__(mode)
+    
+    def calculate(self, event):
+        self.track = None
+        self.reco_match = None
+        modes = np.array(event['EMTFNtuple'].emtfTrack_mode)
+        good_track_inds = np.where((modes == self.mode) | (modes == 15))[0]
+        if good_track_inds.size == 0:
+            return
+        self.track = int(good_track_inds[0])
+        self.hitrefs = np.array([
+            event['EMTFNtuple'].emtfTrack_hitref1[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref2[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref3[self.track],
+            event['EMTFNtuple'].emtfTrack_hitref4[self.track],
+        ], dtype=int)
+
+        # We use the reco muon as the gen muon, but we must figure out which track in the EMTF corresponds to which gen muon
+        # To do this we calculate dR=sqrt(dPhi^2 + dEta^2) using station 2 phi and eta, and find the minimum. 
+        phi = np.abs(event["EMTFNtuple"].emtfUnpTrack_phi[self.track]) * (np.pi / 180)
+        eta = event["EMTFNtuple"].emtfUnpTrack_eta[self.track]
+
+        phi_diffs = np.abs(np.array(event["EMTFNtuple"].recoMuon_phiSt2)) - phi
+        eta_diffs = np.array(event["EMTFNtuple"].recoMuon_etaSt2) - eta
+
+        dR = np.sqrt(eta_diffs ** 2 + phi_diffs ** 2)
+
+        match_ind = int(np.argmin(dR))
+        if dR[match_ind] >= self.dR_match_max:
+            return
+        
+        self.reco_match = match_ind
 
 # -------------------------------    Dataset Definition    -----------------------------------
 class Dataset:
@@ -417,7 +463,7 @@ class Dataset:
 
             if not self.apply_filters(raw_data, self.shared_info):
                 continue
-
+            
             self.filtered[event_num] = True
             self.data[event_num] = self.process_event(raw_data)
 
@@ -441,7 +487,7 @@ class Dataset:
         else:
             data = self.data
         
-        return np.array(data[:, np.isin(np.array(self.feature_names), features)])
+        return np.array(data[:, np.isin(np.array(self.feature_names), features)]).squeeze()
 
     def __str__(self) -> str:
         """
@@ -517,6 +563,13 @@ class Dataset:
                     if nFiles >= files_per_endcap:
                         break_loop = True
 
+        for dir_name, tchain in event_data.items():
+            for branch in tchain.GetListOfBranches():
+                branch_name = branch.GetName()
+                if "Unp" in branch_name:
+                    alias_name = branch_name.replace("Unp", "")
+                    tchain.SetAlias(alias_name, branch_name)
+
         return event_data, file_names
     
     @classmethod
@@ -544,27 +597,10 @@ class Dataset:
         new_dataset.filtered = filtered
         new_dataset.data = np.hstack([dataset.data for dataset in datasets])
         return new_dataset
+    
 
 
-# -------------------------------    Filter definitions    -----------------------------------
-class HasModeFilter(EventFilter):
-    def __init__(self):
-        super().__init__()
-        pass
-
-    def filter(self, event, shared_info):
-        return shared_info.track != None
-
-
-class TrackCountFilter(EventFilter):
-    def __init__(self, track_count = 1):
-        super().__init__()
-        self.track_count = track_count
-        pass
-
-    def filter(self, event, shared_info):
-        return event.emtfTrack_size == self.track_count
-
+# ughhhhhh
 
 # -------------------------------    Training variable definitions    -----------------------------------
 class GeneratorVariables(TrainingVariable):
@@ -572,11 +608,43 @@ class GeneratorVariables(TrainingVariable):
         super().__init__(["gen_pt", "gen_eta", "gen_phi"], tree_sources=["EMTFNtuple"])
     
     def calculate(self, event):
-        # Directly update the feature slice instead of overwriting it with a new array
         self.feature_inds[0] = event['EMTFNtuple'].genPart_pt[0]
         self.feature_inds[1] = event['EMTFNtuple'].genPart_eta[0]
-        self.feature_inds[2] = event['EMTFNtuple'].genPart_phi[0]
+        self.feature_inds[2] = event['EMTFNtuple'].genPart_phi[0]    
 
+class RecoVariables(GeneratorVariables):
+    def __init__(self):
+        super().__init__()
+    
+    def calculate(self, event):
+        self.feature_inds[0] = event["EMTFNtuple"].recoMuon_pt[self.shared_reference.reco_match]
+        self.feature_inds[1] = event["EMTFNtuple"].recoMuon_eta[self.shared_reference.reco_match]
+        self.feature_inds[2] = event["EMTFNtuple"].recoMuon_phi[self.shared_reference.reco_match]
+        
+class TrackVariables(TrainingVariable):
+    def __init__(self, branches):
+        self.branches = branches
+        super().__init__(branches, tree_sources=["EMTFNtuple"])
+
+    def calculate(self, event):
+        for i, branch in enumerate(self.branches):
+            self.feature_inds[i] = getattr(event["EMTFNtuple"], branch)[int(self.shared_reference.track)]
+
+class HitVariables(TrainingVariable):
+    def __init__(self, branches, stations):
+        feature_names = []
+        for branch in branches:
+            for station in stations:
+                feature_names += [branch + "_" + str(station + 1)]
+        self.branches = branches
+        self.stations = stations
+        super().__init__(feature_names, tree_sources=["EMTFNtuple"])
+
+    def calculate(self, event):
+        for i, branch in enumerate(self.branches):
+            for j, station in enumerate(self.stations):
+                ind = i * len(self.stations) + j
+                self.feature_inds[ind] = getattr(event["EMTFNtuple"], branch)[int(self.shared_reference.hitrefs[station])]
 
 class Theta(TrainingVariable):
     def __init__(self, theta_station):
@@ -1001,6 +1069,23 @@ class dPhiSum(TrainingVariable):
     def for_mode(cls, mode):
         return cls(transitions_from_mode(mode))
 
+class dPhiSumA(TrainingVariable):
+    def __init__(self, transitions, feature_name="dPhiSumA"):
+        feature_dependencies = ["dPhi_" + str(transition) for transition in transitions]
+        super().__init__(feature_name, feature_dependencies=feature_dependencies)
+        self.transitions = transitions
+        self.dPhi_reference_inds = None
+
+    def configure(self):
+        self.dPhi_reference_inds = np.array([self.shared_reference.feature_names.index("dPhi_" + str(transition)) for transition in self.transitions])
+
+    def calculate(self, event):
+        self.feature_inds[0] = np.sum(np.abs(self.shared_reference.entry_reference[self.dPhi_reference_inds]))
+
+    @classmethod
+    def for_mode(cls, mode):
+        return cls(transitions_from_mode(mode))
+
 # -------------------------------    For use with mode 15    -----------------------------------
 class dPhiSum4(dPhiSum):
     def __init__(self):
@@ -1138,11 +1223,25 @@ class ShowerBit(TrainingVariable):
 
 
 class AllShower(TrainingVariable):
-    def __init__(self, stations):
+    match_by_valid = ["chamber", "sector"]
+    # Transate a chamber to a sector
+    all_sector_map = np.roll((np.arange(36) // 6) + 1, 2)
+    outer_station_ring1_sector_map = np.roll((np.arange(18) // 3) + 1, 1)
+
+    # Find the neightbor sector of a chamber
+    all_neighbor_sector_map = np.array([-1, 1, 6, -1, -1, -1, -1, 2, 1, -1, -1, -1, -1, 3, 2, -1, -1, -1, -1, 4, 3, -1 , -1, -1, -1, 5, 4, -1, -1, -1, -1, 6, 5, -1, -1, -1])
+    outer_station_ring1_neighbor_sector_map = np.array([1, 6, -1, 2, 1, -1, 3, 2, -1, 4, 3, -1, 5, 4, -1, 6, 5, -1])
+
+    def __init__(self, stations, match_by = "chamber"):
+        if match_by not in AllShower.match_by_valid:
+            ValueError(f"Cannot match by {match_by}. Options are: {AllShower.match_by_valid}")
+
         feature_names = []
         for station in stations + 1:
             feature_names.extend(["loose_" + str(station), "nominal_" + str(station), "tight_" + str(station)])
         super().__init__(feature_names=feature_names, tree_sources=['EMTFNtuple','MuShowerNtuple'])
+
+        self.match_by = AllShower.match_by_valid.index(match_by)
         self.stations = stations
         self.showers_on_track = np.zeros((4, 3), dtype='bool')
     
@@ -1161,13 +1260,29 @@ class AllShower(TrainingVariable):
             # Loop through each shower and see if it corresponds to a hit in the track
             for i in range(event['MuShowerNtuple'].CSCShowerDigiSize):
                 # Check that the hit location matches the shower location
-                if (event['EMTFNtuple'].emtfHit_chamber[hitref] == event['MuShowerNtuple'].CSCShowerDigi_chamber[i] and 
-                    event['EMTFNtuple'].emtfHit_ring[hitref] == event['MuShowerNtuple'].CSCShowerDigi_ring[i] and 
-                    event['EMTFNtuple'].emtfHit_station[hitref] == event['MuShowerNtuple'].CSCShowerDigi_station[i] and 
-                    event['EMTFNtuple'].emtfHit_endcap[hitref] == event['MuShowerNtuple'].CSCShowerDigi_endcap[i]):
-                    # Add the shower information to the array
-                    self.showers_on_track[station, :] = np.array([int(event['MuShowerNtuple'].CSCShowerDigi_oneLoose[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneNominal[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneTight[i])]).T
-
+                if self.match_by == 0: # Match by chamber
+                    if (event['EMTFNtuple'].emtfHit_chamber[hitref] == event['MuShowerNtuple'].CSCShowerDigi_chamber[i] and 
+                        event['EMTFNtuple'].emtfHit_ring[hitref] == event['MuShowerNtuple'].CSCShowerDigi_ring[i] and 
+                        event['EMTFNtuple'].emtfHit_station[hitref] == event['MuShowerNtuple'].CSCShowerDigi_station[i] and 
+                        event['EMTFNtuple'].emtfHit_endcap[hitref] == event['MuShowerNtuple'].CSCShowerDigi_endcap[i]):
+                        # Add the shower information to the array
+                        self.showers_on_track[station, :] = np.array([int(event['MuShowerNtuple'].CSCShowerDigi_oneLoose[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneNominal[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneTight[i])]).T
+                if self.match_by == 1: # Match by sector
+                    if event['MuShowerNtuple'].CSCShowerDigi_ring[i] == 1 and event['MuShowerNtuple'].CSCShowerDigi_station[i] > 1:
+                        sector = AllShower.outer_station_ring1_sector_map[event['MuShowerNtuple'].CSCShowerDigi_chamber[i] - 1]
+                        neighbor_sector = AllShower.outer_station_ring1_neighbor_sector_map[event['MuShowerNtuple'].CSCShowerDigi_chamber[i] - 1]
+                    else:
+                        sector = AllShower.all_sector_map[event['MuShowerNtuple'].CSCShowerDigi_chamber[i] - 1]
+                        neighbor_sector = AllShower.all_neighbor_sector_map[event['MuShowerNtuple'].CSCShowerDigi_chamber[i] - 1]
+                    
+                    if ((event['EMTFNtuple'].emtfHit_sector[hitref] == sector or event['EMTFNtuple'].emtfHit_sector[hitref] == neighbor_sector) and
+                        event['EMTFNtuple'].emtfHit_station[hitref] == event['MuShowerNtuple'].CSCShowerDigi_station[i] and
+                        event['EMTFNtuple'].emtfHit_endcap[hitref] == event['MuShowerNtuple'].CSCShowerDigi_endcap[i]):
+                        self.showers_on_track[station, :] = np.logical_or(
+                            self.showers_on_track[station, :],
+                            np.array([int(event['MuShowerNtuple'].CSCShowerDigi_oneLoose[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneNominal[i]), int(event['MuShowerNtuple'].CSCShowerDigi_oneTight[i])]).T
+                        )
+                        
         for feature_num, station in enumerate(self.stations):
             self.feature_inds[3 * feature_num : 3 * feature_num + 3] = self.showers_on_track[station, :]
     
@@ -1218,10 +1333,3 @@ class ShowerStationType(TrainingVariable):
     @classmethod
     def for_mode(cls, mode):
         return cls(np.where(get_station_presence(mode))[0])
-
-# class OutStation(dPhiSum):
-#     def __init__(self):
-#         super().__init__(TRANSITION_NAMES, feature_name="outStPhi")
-    
-#     # The out station is the station for which each dPhi transition 
-#     def calculate(self, event):
