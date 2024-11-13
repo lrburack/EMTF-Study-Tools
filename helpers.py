@@ -5,26 +5,11 @@ from Dataset import Dataset
 import numpy as np
 import time
 
+
 def get_by_name(name : str, item : str):
-    path = os.path.join(config.RESULTS_DIRECTORY, name, item)
+    path = os.path.join(config.DATASET_DIRECTORY, name, item)
     with open(path, 'rb') as file:
         return pickle.load(file)
-
-
-def get_trainable(dataset : Dataset):
-    filtered_data = dataset.data[dataset.filtered]
-
-    # Mask with True where the feature name does not start with gen
-    trainable_features = np.array([not feature_name.startswith("gen") for feature_name in dataset.feature_names], dtype='bool')
-    trainable_data = filtered_data[:, trainable_features]
-
-    gen_pt = filtered_data[:, np.array(dataset.feature_names) == "gen_pt"]
-
-    train_pt = np.log(gen_pt)
-    event_weight = 1 / np.log2(gen_pt)
-
-    return trainable_data, train_pt, event_weight, filtered_data
-
 
 def permute_together(*arrays):
     # Check that all arrays have the same length
@@ -41,7 +26,7 @@ def permute_together(*arrays):
         array[:] = array[permutation]
 
 def build_from_wrapper_dict(wrapper_dict):
-    raw_data = Dataset.get_root(base_dirs=wrapper_dict['base_dirs'], 
+    raw_data, files_used = Dataset.get_root(base_dirs=wrapper_dict['base_dirs'], 
                                 files_per_endcap=wrapper_dict['files_per_endcap'])
 
     print("------------------------------ Dataset Details -------------------------------")
