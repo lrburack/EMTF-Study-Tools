@@ -43,7 +43,7 @@ name = "EphemeralZeroBias/mode=" + str(mode)
 # name = "Tests/mode=" + str(mode)
 
 # Make sure you don't accidently overwrite an existing dataset
-if os.path.exists(os.path.join(config.RESULTS_DIRECTORY, name)) and os.path.isdir(os.path.join(config.RESULTS_DIRECTORY, name)):
+if os.path.exists(os.path.join(config.DATASET_DIRECTORY, name)) and os.path.isdir(os.path.join(config.DATASET_DIRECTORY, name)):
     print("A dateset with the name " + name + " has already been initiated.")
     overwrite = ""
     while overwrite not in ["y", "n"]:
@@ -93,18 +93,18 @@ training_data_builder = Dataset(variables=[
 wrapper_dict = {
     'training_data_builder': training_data_builder,
     'base_dirs': base_dirs,
-    'files_per_endcap': 10
+    'files_per_endcap': 1
 }
 
-os.makedirs(os.path.join(config.RESULTS_DIRECTORY, name), exist_ok=True)
-dict_path = os.path.join(config.RESULTS_DIRECTORY, name, config.WRAPPER_DICT_NAME)
+os.makedirs(os.path.join(config.DATASET_DIRECTORY, name), exist_ok=True)
+dict_path = os.path.join(config.DATASET_DIRECTORY, name, config.WRAPPER_DICT_NAME)
 
 if CONDOR:
     with open(dict_path, 'wb') as file:
         pickle.dump(wrapper_dict, file)
     
     condor_submit_path = os.path.join(config.CODE_DIRECTORY, "condor_wrapper.sub")
-    command = "condor_submit " + condor_submit_path + " code_directory=" + config.CODE_DIRECTORY + " results_directory=" + config.RESULTS_DIRECTORY + " name=" + name
+    command = "condor_submit " + condor_submit_path + " code_directory=" + config.CODE_DIRECTORY + " DATASET_DIRECTORY=" + config.DATASET_DIRECTORY + " name=" + name
 
     print(command)
     os.system(command)

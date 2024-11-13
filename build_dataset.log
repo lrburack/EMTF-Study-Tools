@@ -1,0 +1,35 @@
+000 (12913587.000.000) 11/13 17:09:39 Job submitted from host: <137.138.120.116:9618?addrs=137.138.120.116-9618+[2001-1458-d00-16--17b]-9618&alias=bigbird12.cern.ch&noUDP&sock=schedd_2080_4914>
+...
+040 (12913587.000.000) 11/13 17:10:34 Started transferring input files
+	Transferring to host: <188.185.194.58:9618?addrs=188.185.194.58-9618+[2001-1458-303-21--100-36]-9618&alias=b9p20p2508.cern.ch&noUDP&sock=slot1_1_749659_552e_6192>
+...
+040 (12913587.000.000) 11/13 17:10:34 Finished transferring input files
+...
+001 (12913587.000.000) 11/13 17:10:35 Job executing on host: <188.185.194.58:9618?addrs=188.185.194.58-9618+[2001-1458-303-21--100-36]-9618&alias=b9p20p2508.cern.ch&noUDP&sock=startd_174974_3052>
+	SlotName: slot1_1@b9p20p2508.cern.ch
+	CondorScratchDir = "/pool/condor/dir_2085224"
+	Cpus = 1
+	Disk = 3019008
+	Memory = 2000
+...
+006 (12913587.000.000) 11/13 17:10:43 Image size of job updated: 1
+	0  -  MemoryUsage of job (MB)
+	0  -  ResidentSetSize of job (KB)
+...
+006 (12913587.000.000) 11/13 17:11:06 Image size of job updated: 179460
+	15  -  MemoryUsage of job (MB)
+	14988  -  ResidentSetSize of job (KB)
+...
+040 (12913587.000.000) 11/13 17:11:08 Started transferring output files
+...
+040 (12913587.000.000) 11/13 17:11:09 Finished transferring output files
+...
+007 (12913587.000.000) 11/13 17:11:09 Shadow exception!
+	Error from slot1_1@b9p20p2508.cern.ch: STARTER at 188.185.194.58 failed to send file(s) to <137.138.120.116:9618>: : FILETRANSFER:1:Multi-file plugin at /usr/libexec/condor/xrdcp_plugin.py did not produce valid response; missing TransferFileName|FILETRANSFER:1:non-zero exit (1) from /usr/libexec/condor/xrdcp_plugin.py. |Error: RuntimeError: b'Run: [ERROR] Server responded with an error: [3022] Unable to accept path name - illegal characters - use only A-Z a-z 0-9 / SPACE .-_~#:^ /eos/cms/store/user/lburack/work/BDTdev/Test/Datasets/#(name)/lburack.cc; Invalid or incomplete multibyte or wide character (destination)\n\n' ( URL file = root://eosuser.cern.ch//eos/cms/store/user/lburack/work/BDTdev/Test/Datasets/#(name)/lburack.cc )||FILETRANSFER:1:"/usr/libexec/condor/onedrive_plugin.py -classad" did not produce any output, ignoring|FILETRANSFER:1:"/usr/libexec/condor/gdrive_plugin.py -classad" did not produce any output, ignoring|FILETRANSFER:1:"/usr/libexec/condor/box_plugin.py -classad" did not produce any output, ignoring; SHADOW failed to receive file(s) from <188.185.194.58:43721>
+	0  -  Run Bytes Sent By Job
+	209  -  Run Bytes Received By Job
+...
+012 (12913587.000.000) 11/13 17:11:10 Job was held.
+	Transfer output files failure at execution point slot1_1@b9p20p2508.cern.ch using protocol root. Details: RuntimeError: b'Run: [ERROR] Server responded with an error: [3022] Unable to accept path name - illegal characters - use only A-Z a-z 0-9 / SPACE .-_~#:^ /eos/cms/store/user/lburack/work/BDTdev/Test/Datasets/#(name)/lburack.cc; Invalid or incomplete multibyte or wide character (destination)\n\n' ( URL file = root://eosuser.cern.ch//eos/cms/store/user/lburack/work/BDTdev/Test/Datasets/#(name)/lburack.cc )||FILETRANSFER:1:"/usr/libexec/condor/onedrive_plugin.py -classad" did not produce any output, ignoring|FILETRANSFER:1:"/usr/libexec/condor/gdrive_plugin.py -classad" did not produce any output, ignoring|FILETRANSFER:1:"/usr/libexec/condor/box_plugin.py -classad" did not produce any output, ignoring
+	Code 12 Subcode 256
+...
