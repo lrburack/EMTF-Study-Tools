@@ -5,9 +5,8 @@ from Dataset import Dataset
 import numpy as np
 import time
 
-
-def get_by_name(name : str, item : str):
-    path = os.path.join(config.DATASET_DIRECTORY, name, item)
+def get_by_name(name : str, item : str = config.WRAPPER_DICT_NAME):
+    path = os.path.join(config.RESULTS_DIRECTORY, name, item)
     with open(path, 'rb') as file:
         return pickle.load(file)
 
@@ -26,7 +25,7 @@ def permute_together(*arrays):
         array[:] = array[permutation]
 
 def build_from_wrapper_dict(wrapper_dict):
-    raw_data, files_used = Dataset.get_root(base_dirs=wrapper_dict['base_dirs'], 
+    raw_data, file_names = Dataset.get_root(base_dirs=wrapper_dict['base_dirs'], 
                                 files_per_endcap=wrapper_dict['files_per_endcap'])
 
     print("------------------------------ Dataset Details -------------------------------")
@@ -36,7 +35,7 @@ def build_from_wrapper_dict(wrapper_dict):
     print("------------------------------ Building Dataset ------------------------------")
 
     start_time = time.time()
-    wrapper_dict['training_data_builder'].build_dataset(raw_data)
+    wrapper_dict['training_data_builder'].build_dataset(raw_data, wrapper_dict["tracks_to_process"])
     end_time = time.time()
 
     print("\n")
