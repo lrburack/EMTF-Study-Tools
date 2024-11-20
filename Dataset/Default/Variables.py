@@ -1,5 +1,5 @@
-from Dataset import TrainingVariable
-from constants import *
+from Dataset.Dataset import TrainingVariable
+from Dataset.constants import *
 
 # -------------------------------    Training variable definitions    -----------------------------------
 class GeneratorVariables(TrainingVariable):

@@ -1,5 +1,5 @@
-from Dataset import SharedInfo
-from constants import *
+from Dataset.Dataset import SharedInfo
+from Dataset.constants import *
 
 class RecoSharedInfo(SharedInfo):
     def __init__(self, mode):
@@ -18,6 +18,5 @@ class RecoSharedInfo(SharedInfo):
         eta_diffs = np.array(event["EMTFNtuple"].recoMuon_etaSt2) - eta
 
         dR = np.sqrt(eta_diffs ** 2 + phi_diffs ** 2)
-        match_ind = int(np.argmin(dR))
         
-        self.reco_match = match_ind
+        self.reco_match = int(np.argmin(dR))
