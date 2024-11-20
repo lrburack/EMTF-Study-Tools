@@ -1,7 +1,7 @@
-from Dataset import TrainingVariable
-from constants import *
+from Dataset.Dataset import TrainingVariable
+from Dataset.constants import *
 
-from Objects.Default.Variables import GeneratorVariables
+from Dataset.Default.Variables import GeneratorVariables
 
 class RecoVariables(GeneratorVariables):
     def __init__(self):

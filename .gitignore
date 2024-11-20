@@ -1,2 +1,3 @@
 /Validation
 __pycache__
+/condor_wrapper/logs/*

@@ -1,5 +1,5 @@
-from Dataset import TrackSelector
-from constants import *
+from Dataset.Dataset import TrackSelector
+from Dataset.constants import *
 
 class MaxTrackSelector(TrackSelector):
     def __init__(self, mode: int, max_tracks: int, include_mode_15: bool = True):

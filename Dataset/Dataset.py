@@ -3,7 +3,7 @@ import ROOT
 import numpy as np
 from typing import List, Optional, Union, Tuple
 from datetime import datetime
-from constants import *
+from Dataset.constants import *
 
 PRINT_EVENT = 100000
 
@@ -47,10 +47,11 @@ class TrackSelector:
     # Return the valid track indexes
     def select(self, event):
         modes = np.array(event["EMTFNtuple"].emtfTrack_mode)
+        bx = np.array(event["EMTFNtuple"].emtfTrack_bx)
         if self.include_mode_15:
-            return np.where((modes == self.mode) | (modes == 15))[0]
+            return np.where(((modes == self.mode) | (modes == 15)) & (bx == 0))[0]
         else:
-            return np.where(modes == self.mode)[0]
+            return np.where((modes == self.mode) & (bx == 0))[0]
 
 
 class SharedInfo:
@@ -72,7 +73,6 @@ class SharedInfo:
         self.entry = None
 
     def calculate(self, event, track):
-        print(track)
         self.track = int(track)
         
         self.hitrefs[0] = int(event['EMTFNtuple'].emtfTrack_hitref1[self.track])
@@ -130,18 +130,21 @@ class Dataset:
 
         # Each variable can produce multiple features (for example dPhi can produce dPhi_12, dPhi_13 ect.) Each TrainingVariable declares what features it intends
         # to calculate when it is instantiated. Here, we tell each TrainingVariable where to output what it calculates. 
-        start_ind = 0
-        for variable in self.variables:
-            variable.shared_reference = self.shared_info
-            variable.feature_inds = self.entry[start_ind:start_ind + len(variable.feature_names)] # These are the positions in the entry array which this TrainingVariable may populate
-            variable.configure()
-            start_ind += len(variable.feature_names)
+        self.set_variable_references()
 
         # These are set by the build_dataset method.
         self.data = None                    # Where all the calculated features are output. There will be a row for each track
         self.event_correspondance = None    # Contains the event number where each track (each row in data) came from 
         self.tracks_processed = 0           # 
         self.events_processed = 0           # 
+    
+    def set_variable_references(self):
+        start_ind = 0
+        for variable in self.variables:
+            variable.shared_reference = self.shared_info
+            variable.feature_inds = self.entry[start_ind:start_ind + len(variable.feature_names)] # These are the positions in the entry array which this TrainingVariable may populate
+            variable.configure()
+            start_ind += len(variable.feature_names)
 
     def process_event(self, event: dict) -> np.ndarray:
         """
@@ -160,7 +163,7 @@ class Dataset:
 
         return self.entry
     
-    def build_dataset(self, raw_data: dict, tracks_to_process: int) -> np.ndarray:
+    def build_dataset(self, raw_data: dict) -> np.ndarray:
         """
         Builds the dataset by processing events from the raw input data and applying filters.
 
@@ -180,24 +183,29 @@ class Dataset:
             if raw_data[tree].GetEntries() != event_count:
                 raise Exception("Different number of events in each tree")
 
-        self.data = np.zeros((tracks_to_process, self.num_features), dtype='float32')
-        self.event_correspondance = np.zeros(tracks_to_process, dtype='bool')
+        # We'll start with a reasonable length, and then extend it dynamically if need be
+        track_capacity = event_count # Start by allowing for up to 1 track per event
+        self.data = np.zeros((track_capacity, self.num_features), dtype='float32')
+        self.event_correspondance = np.zeros(track_capacity, dtype=np.int_)
 
-        for event_num in range(event_count):
+        for event_num in np.arange(event_count):
+        # for self.events_processed, event_num in enumerate(event_processing_order):
             if event_num % PRINT_EVENT == 0:
                 print(f"* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\t | Events processed: {event_num}")
                 print(f"\t* Trainable tracks: {self.tracks_processed}")
             
             # These ROOT objects work in a strange way. raw_data contains the information for all the events, but when we call GetEntry(i), the branches from entry i become accessible
             for name in tree_names:
-                raw_data[name].GetEntry(event_num)
+                raw_data[name].GetEntry(int(event_num))
 
             good_tracks = self.track_selector.select(raw_data)
             
-            # Stop if we have already produced enough data
-            if self.tracks_processed + len(good_tracks) > tracks_to_process:
-                break
-            
+            # If we've reached our track capacity, we need to enlarge the data array
+            if self.tracks_processed + len(good_tracks) > track_capacity:
+                track_capacity *= 2 # Double the length of the arrays
+                self.data = np.vstack([self.data, np.zeros((track_capacity - len(self.data), self.num_features), dtype='float32')])
+                self.event_correspondance = np.hstack([self.event_correspondance, np.zeros(track_capacity - len(self.event_correspondance), dtype='bool')])
+
             for track in good_tracks:
                 self.shared_info.calculate(raw_data, track)
                 
@@ -206,7 +214,10 @@ class Dataset:
                 self.tracks_processed += 1
         
         self.events_processed = event_num
-        self.tracks_processed = self.tracks_processed
+
+        # We were dynamically making self.data longer to accomodate more tracks. Now lets shorten self.data to the number of tracks processed
+        self.data = self.data[:self.tracks_processed]
+        self.event_correspondance = self.event_correspondance[:self.tracks_processed]
 
         print(f"* Finished Training at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"\t* Events processed: {event_num} \t | Trainable tracks: {self.tracks_processed}")
