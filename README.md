@@ -4,7 +4,7 @@ The Large Hadron Collider currently collides bunches of protons every 25ns at th
 
 The CMS trigger system attempts to identify and save the most interesting 2000 events out of the 40 million candidates which occur every second. The Level 1 (L1) trigger is implemented in firmware, capable of dealing with high volume, and reduces the rate from 40MHz to 110KHz. These selected events are then sent to the High Level Trigger (HLT), which does a much deeper analysis and reconstruction of the data to choose 2000 most interesting events.
 
-The Endcap Muon Track Finder (EMTF) is part of the L1 trigger. Its job is to identify interesting muons. In most subsystems, interesting particles are particles with high transverse momentum ($p_T$) as these particles are likely the decay products of the heavy particles which CMS analyses most commonly look for. In the case of the Endcap Muon system, we look for single muons with $p_T>22 GeV$, or two muons each with $p_T>8 GeV$.
+The Endcap Muon Track Finder (EMTF) is part of the L1 trigger. Its job is to identify interesting muons. In most subsystems, interesting particles are particles with high transverse momentum ($p_T$) as these particles are likely the decay products of the heavy particles which CMS analyses most commonly look for. For example, one of the criteria (called a "L1 seed") we look at in the Endcap Muon system is a single muon with $p_T>22 GeV$. If EMTF does a good job, it will trigger on all of the muons passing this seed, and reject the uninteresting muons which dont pass this seed. 
 
 To do this, EMTF must use the barely-processed information from the detector to determine the trajectory of muons, and then their momentum -- _at 40MHz_. 
 
