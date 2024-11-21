@@ -3,7 +3,7 @@ import numpy as np
 import scipy.stats
 from scipy.optimize import curve_fit
 from matplotlib.legend_handler import HandlerPathCollection
-
+import matplotlib.pyplot as plt
 
 def getEfficiciencyHist(num_binned, den_binned):
     """
@@ -85,15 +85,17 @@ def reweight(efficiencies, efficiency_errors, weights):
     return np.sum(weighted_efficiencies, axis=0), np.sum(weighted_efficiency_errors, axis=0)
 
 
+bins = np.array([0,1,2,3,4,5,6,7,8,9,10,12,14,16,18,
+           20,22,24,26,28,30,32,34,36,38,40,42,
+           44,46,48,50,60,70,80,90,100,150,200,
+           250,300,400,500,600,700,800,900,1000])
 
-
-def split_low_high(efficiencies, efficiency_errors, labels, low_xlims=[0, 50], high_xlims=[0, 1000]):
+def split_low_high(predicted_pts, true_pts, labels, pt_cut=22, low_xlims=[0, 50], high_xlims=[0, 1000]):
     fig, [low_pt, high_pt] = plt.subplots(2,1)
     x = bins[:-1] + np.diff(bins) / 2
 
-    for i in range(len(efficiencies)):
-        efficiency = efficiencies[i]
-        efficiency_err = efficiency_errors[i]
+    for i in range(len(predicted_pts)):
+        efficiency, efficiency_err = get_efficiency(true_pts[i], predicted_pts[i], pt_bins=bins, pt_cut=pt_cut)
         stairs_plot = low_pt.scatter(x, efficiency, label=labels[i], s=1)
         color = stairs_plot.get_edgecolor()
         high_pt.scatter(x, efficiency, label=labels[i], color=color, s=1)
@@ -116,15 +118,11 @@ def split_low_high(efficiencies, efficiency_errors, labels, low_xlims=[0, 50], h
     low_pt.axvline(pt_cut, color="black", linestyle="dashed")
     # low_pt.axhline(0.9, color="black", linestyle="dashed")
 
-    if y_lims != None:
-        high_pt.set_ylim(y_lims)
-    else:
-        high_pt.set_ylim(.95 * efficiencies[0][-1], 1)
+    high_pt.set_ylim(.95 * efficiency[-1], 1)
     high_pt.set_xlim(high_xlims)
 
     low_pt.legend(handler_map={plt.scatter: HandlerPathCollection(marker_pad=0)}, markerscale=5)
 
-    fig.suptitle(fig_name)
     return fig, [low_pt, high_pt]
 
 def resolution_3d(gen_pt, predicted_pt, gen_pt_bins):

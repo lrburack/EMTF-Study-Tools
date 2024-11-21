@@ -1,5 +1,5 @@
 from Dataset.Dataset import TrainingVariable
-from Dataset.Dataset Dataset.constants import *
+from Dataset.constants import *
 
 class TrackVariables(TrainingVariable):
     def __init__(self, branches):
