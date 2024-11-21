@@ -1,3 +1,4 @@
+import numpy as np
 
 def get_scale_factor(gen_pt, predicted_pt, pt_cut):
     bins = [0,1,2,3,4,5,6,7,8,9,10,12,14,16,18,
@@ -12,3 +13,14 @@ def get_scale_factor(gen_pt, predicted_pt, pt_cut):
     
     pt_90 = fsolve(target_func, pt_cut)[0]
     return pt_90 / pt_cut
+
+
+def current_EMTF_unscale_pt(pt):
+    pt_unscale = 1 / (1.07 + 0.015 * pt)
+    pt_unscale = np.maximum(pt_unscale, (1 - 0.015 * 20) / 1.07)
+    return pt_unscale
+
+def current_EMTF_scale_pt(pt):
+    pt_xml = np.minimum(20., pt);  # Maximum scale set by muons with XML pT = 20 GeV (scaled pT ~31 GeV)
+    pt_scale = 1.07 / (1 - 0.015 * pt_xml)
+    return pt_scale

@@ -5,7 +5,7 @@ STUDY_DIRECTORY     = "/eos/user/l/lburack/work/BDT_studies/Results/Studies"
 FIGURE_DIRECTORY   = "/afs/cern.ch/user/l/lburack/work/BDTdev/Figures"              # And this!
 
 WRAPPER_DICT_NAME = "wrapper_dict.pkl"
-MODEL_NAME = "xgb_model.pkl"
+MODEL_NAME = "model.pkl"
 PREDICTION_NAME = "prediction.pkl"
 
 

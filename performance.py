@@ -6,25 +6,27 @@ import pickle
 import sys
 from helpers import unique_name
 
-# from Performance.efficiency import *
-# from Performance.rate import *
+from Performance.efficiency import *  # The harmless segmentation fault comes from importing scipy packages here. Idk why
+from Performance.model_insights import *
+from Performance.rate import *
 from Performance.resolution import *
-# from Performance.scale_factor import *
+from Performance.scale_factor import *
 
+# ------------------------------------- EDIT BELOW THIS --------------------------------------
+# Here is where you control what data will be used. 
+# The labels on the left will be used in the figure legends
+predictions = {
+#   "Label"         : "Prediction/name"
+    "Tutorial"      : f"Tutorial/mode=15_prediction.pkl",
+}
+# The output directory and figure name
+fig_dir = "Tutorial/"
+fig_name = f"mode=15"
+# ------------------------------------- EDIT ABOVE THIS --------------------------------------
 
-paths = np.array([
-    os.path.join(config.STUDY_DIRECTORY, f"Tests/Condor/FullFlow/mode=15_prediction.pkl"),
-    os.path.join(config.STUDY_DIRECTORY, "Tests/Condor/FullFlow/mode=14_prediction.pkl"),
-    os.path.join(config.STUDY_DIRECTORY, "Tests/Condor/FullFlow/mode=13_prediction.pkl"),
-    os.path.join(config.STUDY_DIRECTORY, "Tests/Condor/FullFlow/mode=11_prediction.pkl"),
-])
-
-labels = ["Mode 15", "Mode 14", "Mode 13", "Mode 11"]
-
-fig_dir = "Tests/NewPerformanceCode/"
+labels = list(predictions.keys())
+paths = [os.path.join(config.STUDY_DIRECTORY, predictions[key]) for key in labels]
 os.makedirs(os.path.join(config.FIGURE_DIRECTORY, fig_dir), exist_ok=True)
-
-fig_name = f"allmodes"
 
 predicted_pts = np.empty((len(paths)), dtype=object)
 true_pts = np.empty((len(paths)), dtype=object)
@@ -35,9 +37,15 @@ for i in range(len(paths)):
     with open(os.path.join(config.DATASET_DIRECTORY, prediction_dict["testing_dataset"], config.WRAPPER_DICT_NAME), "rb") as file:
         dataset = pickle.load(file)["dataset"]
 
+    # predicted_pts[i] = current_EMTF_scale_pt(prediction_dict["predicted_pt"]) * prediction_dict["predicted_pt"]
     predicted_pts[i] = prediction_dict["predicted_pt"]
-    true_pts[i] = dataset.get_features("gen_pt")[prediction_dict["testing_tracks"]]
-    eta = dataset.get_features("gen_eta")[prediction_dict["testing_tracks"]]
+    if "gen_pt" in dataset.feature_names:
+        true_pts[i] = dataset.get_features("gen_pt")[prediction_dict["testing_tracks"]]
+        eta[i] = dataset.get_features("gen_eta")[prediction_dict["testing_tracks"]]
 
-fig, ax = resolution(predicted_pts, true_pts, labels)
-plt.savefig(unique_name(f"resolution_{fig_name}", directory = os.path.join(config.FIGURE_DIRECTORY, fig_dir)), dpi=300)
+
+# -------------------------------- CALL FUNCTIONS TO CREATE FIGURES BELOW HERE --------------------------------------
+
+# Efficiency plot
+fig, [low_pt, high_pt] = split_low_high(predicted_pts, true_pts, labels, pt_cut=22)
+plt.savefig(unique_name(f"efficiency_{fig_name}", directory = os.path.join(config.FIGURE_DIRECTORY, fig_dir)), dpi=300)
