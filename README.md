@@ -1,4 +1,6 @@
 # Tools for EMTF $p_T$ assignment studies
+## Documentation
+Documentation for this codebase can be found on the EMTF website. 
 ## Background
 The Large Hadron Collider currently collides bunches of protons every 25ns at the Compact Muon Solenoid (CMS) experiment. Only a small fraction of these collisions result in interesting events which can be used for physics analyses. Saving everything would mean saving several pedabytes of data every second, so the CMS detector must make quick decisions about what data to keep, and what to discard.
 
