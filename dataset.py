@@ -10,6 +10,8 @@ from Dataset.Default.Variables import *
 from Dataset.Default.SharedInfo import *
 from Dataset.Default.TrackSelectors import *
 from Dataset.AllBranches.Variables import *
+from Dataset.NewBend.Variables import *
+from Dataset.NewBend.TrackSelectors import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--condor", required=False, default=0)
@@ -42,8 +44,9 @@ dataset = Dataset(variables=[
                             dPhiSum4A.for_mode(mode),
                             dPhiSum3.for_mode(mode),
                             dPhiSum3A.for_mode(mode),
+                            NewBend()
                             ],
-                track_selector=TrackSelector(mode=mode, include_mode_15=True),
+                track_selector=NewBendTrackSelector(mode=mode, include_mode_15=True, dR_match_max=0.15),
                 shared_info=SharedInfo(mode=mode),
                 # compress=True
                 )
