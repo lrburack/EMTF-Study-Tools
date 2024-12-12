@@ -1,12 +1,15 @@
 from Dataset.Dataset import TrainingVariable
 from Dataset.constants import *
 
+import NewBend_LUT
+
 # event is a dict with a key for every tree in the Ntuple
 # MuShowerNtuple
 # EMTFNtuple
 
 class NewBend(TrainingVariable):
-    def __init__(self):
+    def __init__(self, dR_match_max: float = None):
+        self.dR_match_max = dR_match_max
         super().__init__(["GEMCSC_dPhi", "GEM_layer"], tree_sources=["EMTFNtuple"])
     
     def calculate(self, event):
@@ -17,6 +20,7 @@ class NewBend(TrainingVariable):
 
         dR = np.zeros(GEM_hitrefs)
 
+        # We need to find the closest GEM hit
         for i, GEM_hitref in enumerate(GEM_hitrefs):
             # For each GEM hit you have to calculate the dR between the gem hit and the station 1 csc
             dR[i] = 
