@@ -1,5 +1,5 @@
 # Change this file for your local clone of the repository
-CODE_DIRECTORY      = "/afs/cern.ch/user/l/lburack/work/BDTdev/EMTF_BDT"            # Change this!
+CODE_DIRECTORY      = "/afs/cern.ch/user/l/lburack/work/BDTdev/EMTF-Study-Tools"            # Change this!
 DATASET_DIRECTORY   = "/eos/user/l/lburack/work/BDT_studies/Results/Datasets"       # And this!
 STUDY_DIRECTORY     = "/eos/user/l/lburack/work/BDT_studies/Results/Studies"
 FIGURE_DIRECTORY   = "/afs/cern.ch/user/l/lburack/work/BDTdev/Figures"              # And this!
@@ -16,6 +16,12 @@ PREDICTION_NAME = "prediction.pkl"
 wHMT = ["/eos/user/p/pakellin/RUN3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_posEndcap_14_0_12_BDT2024/240826_193940/0000", "/eos/user/p/pakellin/RUN3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_negEndcap_14_0_12_BDT2024/240826_193901/0000"]
 # Testing distribution (flat in pT)
 wHMT_testing_distribution = ["/eos/user/p/pakellin/RUN3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_posEndcap_14_0_12_BDT2024/241008_145954/0000", "/eos/user/p/pakellin/RUN3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_negEndcap_14_0_12_BDT2024/241008_145818/0000"]
+
+# BDT2025
+# Training distribution (flat in 1/pT)
+BDT2025 = ["/eos/cms/store/user/eyigitba/emtf/L1Ntuples/Run3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_posEndcap_14_2_0_pre4_BDT2025_GEMILT_10M_v2/241201_095537/0000/", "/eos/cms/store/user/eyigitba/emtf/L1Ntuples/Run3/crabOut/CRAB_PrivateMC/SingleMuGun_flatOneOverPt1to1000_negEndcap_14_2_0_pre4_BDT2025_GEMILT_10M_v2/241201_095448/0000/"]
+# Testing distribution (flat in pT)
+BDT2025_testing_distribution = [ "/eos/cms/store/user/eyigitba/emtf/L1Ntuples/Run3/crabOut/CRAB_PrivateMC/SingleMuGun_flatPt1to1000_posEndcap_14_2_0_pre4_BDT2025_GEMILT_10M/241201_095621/0000/", "/eos/cms/store/user/eyigitba/emtf/L1Ntuples/Run3/crabOut/CRAB_PrivateMC/SingleMuGun_flatPt1to1000_negEndcap_14_2_0_pre4_BDT2025_GEMILT_10M/241201_095512/0000/"]
 
 # With the very loose
 # Training distribution (flat in 1/pT)
