@@ -19,8 +19,8 @@ CONDOR = bool(args.condor)
 
 # --------------------------------------- CHANGE BELOW HERE -----------------------------------------
 
-base_dirs = config.wHMT
-# base_dirs = config.wHMT_testing_distribution
+base_dirs = config.BDT2025
+# base_dirs = config.BDT2025_testing_distribution
 
 mode = 15
 
