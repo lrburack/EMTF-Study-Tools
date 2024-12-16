@@ -4,12 +4,13 @@ from Dataset.constants import *
 # -------------------------------    Training variable definitions    -----------------------------------
 class GeneratorVariables(TrainingVariable):
     def __init__(self):
-        super().__init__(["gen_pt", "gen_eta", "gen_phi"], tree_sources=["EMTFNtuple"], trainable=False)
+        super().__init__(["gen_pt", "gen_eta", "gen_phi", "gen_q"], tree_sources=["EMTFNtuple"], trainable=False)
     
     def calculate(self, event):
         self.feature_inds[0] = event['EMTFNtuple'].genPart_pt[0]
         self.feature_inds[1] = event['EMTFNtuple'].genPart_eta[0]
         self.feature_inds[2] = event['EMTFNtuple'].genPart_phi[0]
+        self.feature_inds[3] = event['EMTFNtuple'].genPart_q[0]
 
 class Theta(TrainingVariable):
     def __init__(self, theta_station):
@@ -288,19 +289,20 @@ class RPC(TrainingVariable):
                 self.feature_inds[2] = 0
             elif rpc[2] and rpc[3] and event['EMTFNtuple'].emtfTrack_ptLUT_st1_ring2[self.shared_reference.track] == 0:
                 self.feature_inds[2] = 0
-        else: # For 3 station only
+        elif mode == 14 or mode == 13 or mode == 11:
             # If the first RPC is present we dont care about the others
             if rpc[0]:
                 self.feature_inds[1] = 0
                 self.feature_inds[2] = 0
             elif rpc[2]:
                 self.feature_inds[1] = 0
+        # No RPC compression for 2 station modes (these bits are not included in the LUT address)
+        # We just do two 3 bit bends for the first two present stations
 
     @classmethod
     def for_mode(cls, mode):
         # There should be an RPC feature for each station in the track
-        station_presence = get_station_presence(mode)
-        return cls(np.where(station_presence)[0])
+        return cls(stations(mode))
 
 
 class Bend(TrainingVariable):
