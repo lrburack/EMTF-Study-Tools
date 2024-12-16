@@ -21,13 +21,14 @@ CONDOR = bool(args.condor)
 
 # --------------------------------------- CHANGE BELOW HERE -----------------------------------------
 
+# base_dirs = config.BDT2025
 base_dirs = config.wHMT
-# base_dirs = config.wHMT_testing_distribution
+# base_dirs = config.BDT2025_testing_distribution
 
 mode = 15
 
-name = f"Tutorial/mode={mode}"
-# name = f"Tutorial/mode={mode}_testing_distribution"
+name = f"NewBend/mode={mode}"
+# name = f"NewBend/mode={mode}_testing_distribution"
 
 dataset = Dataset(variables=[
                             GeneratorVariables.for_mode(mode), 
@@ -46,9 +47,9 @@ dataset = Dataset(variables=[
                             dPhiSum3A.for_mode(mode),
                             NewBend()
                             ],
-                track_selector=NewBendTrackSelector(mode=mode, include_mode_15=True, dR_match_max=0.15),
+                track_selector=NewBendTrackSelector(mode=mode, include_mode_15=True, dR_match_max=15),
                 shared_info=SharedInfo(mode=mode),
-                # compress=True
+                compress=True
                 )
 
 # --------------------------------------- CHANGE ABOVE HERE -----------------------------------------
@@ -67,7 +68,7 @@ if os.path.exists(os.path.join(config.DATASET_DIRECTORY, name)) and os.path.isdi
 wrapper_dict = {
     'dataset': dataset,
     'base_dirs': base_dirs,
-    'files_per_endcap': 1
+    'files_per_endcap': 40
 }
 
 os.makedirs(os.path.join(config.DATASET_DIRECTORY, name), exist_ok=True)

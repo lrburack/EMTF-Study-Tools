@@ -213,7 +213,7 @@ class Dataset:
                 self.data[self.tracks_processed] = self.process_event(raw_data)
                 self.tracks_processed += 1
         
-        self.events_processed = event_num
+        self.events_processed = event_num + 1
 
         # We were dynamically making self.data longer to accomodate more tracks. Now lets shorten self.data to the number of tracks processed
         self.data = self.data[:self.tracks_processed]

@@ -1,3 +1,6 @@
+# These LUTs are used to correct the slope
+# Copied from Aarif's code
+
 ME11a_even_l1 = {
     0: (0, 0),
     1: (5, 8),
@@ -142,3 +145,28 @@ ME11b_odd_l2 = {
     14: (148, 188),
     15: (159, 202),
 }
+
+def CSCGEMSlopecorrector(Clct_slope,Layer,Chamber,Sign,IsME11a):
+    if Layer==1:
+        if Chamber%2==0:
+            if IsME11a:
+                Slopeshift = ME11a_even_l1[Clct_slope][1]
+            else:
+                Slopeshift = ME11b_even_l1[Clct_slope][1]
+        else:
+            if IsME11a:
+                Slopeshift = ME11a_odd_l1[Clct_slope][1]
+            else:
+                Slopeshift = ME11b_odd_l1[Clct_slope][1]
+    else:
+        if Chamber%2==0:
+            if IsME11a:
+                Slopeshift = ME11a_even_l2[Clct_slope][1]
+            else:
+                Slopeshift = ME11b_even_l2[Clct_slope][1]
+        else:
+            if IsME11a:
+                Slopeshift = ME11a_odd_l2[Clct_slope][1]
+            else:
+                Slopeshift = ME11b_odd_l2[Clct_slope][1]
+    return Slopeshift * Sign
