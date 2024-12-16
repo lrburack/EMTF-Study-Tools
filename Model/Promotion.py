@@ -1,4 +1,5 @@
-import Model.Model
+from Model.Model import Model
+import numpy as np
 
 class Promotion(Model):
     def __init__(self, model: Model, promotion_features, promotion_function):
@@ -7,13 +8,12 @@ class Promotion(Model):
         self.promotion_function = promotion_function
     
     def train(self, events, target):
-        train_events = self.model.prep_events(events)
-        self.model.train(train_events, target)
+        self.model.train(events[:, :len(self.model.features)], target)
 
     def predict(self, events):
-        test_events = self.model.prep_events(events)
-        pT = self.model.predict(test_events)
+        pT = self.model.predict(events[:, :len(self.model.features)])
 
-        promotion_info = self.prep_events(events)
-
-        return self.promotion_function(pT, promotion_info)
+        return self.promotion_function(pT, events[:, -len(self.features):])
+    
+    def prep_events(self, events, feature_names):
+        return np.column_stack((self.model.prep_events(events, feature_names), super().prep_events(events, feature_names)))
