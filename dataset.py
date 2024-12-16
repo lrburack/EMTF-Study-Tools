@@ -27,6 +27,8 @@ mode = 15
 name = f"Tutorial/mode={mode}"
 # name = f"Tutorial/mode={mode}_testing_distribution"
 
+files_per_endcap = 1
+
 dataset = Dataset(variables=[
                             GeneratorVariables.for_mode(mode), 
                         #    RecoVariables.for_mode(mode), 
@@ -64,7 +66,7 @@ if os.path.exists(os.path.join(config.DATASET_DIRECTORY, name)) and os.path.isdi
 wrapper_dict = {
     'dataset': dataset,
     'base_dirs': base_dirs,
-    'files_per_endcap': 1
+    'files_per_endcap': files_per_endcap
 }
 
 os.makedirs(os.path.join(config.DATASET_DIRECTORY, name), exist_ok=True)
