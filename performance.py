@@ -47,5 +47,5 @@ for i in range(len(paths)):
 # -------------------------------- CALL FUNCTIONS TO CREATE FIGURES BELOW HERE --------------------------------------
 
 # Efficiency plot
-fig, [low_pt, high_pt] = split_low_high(predicted_pts, true_pts, labels, pt_cut=22)
+fig, [low_pt, high_pt] = efficiency_split_low_high(predicted_pts, true_pts, labels, pt_cut=22)
 plt.savefig(unique_name(f"efficiency_{fig_name}", directory = os.path.join(config.FIGURE_DIRECTORY, fig_dir)), dpi=300)

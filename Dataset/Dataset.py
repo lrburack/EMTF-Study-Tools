@@ -45,10 +45,9 @@ class TrackSelector:
         self.include_mode_15 = include_mode_15
         self.tracks_per_endcap = tracks_per_endcap
 
-        if tracks_per_endcap is not None:
-            self.current_pos_tracks = 0
-            self.current_neg_tracks = 0
-    
+        self.current_pos_tracks = 0
+        self.current_neg_tracks = 0
+
     # Return the valid track indexes
     def select(self, event):
         modes = np.array(event["EMTFNtuple"].emtfTrack_mode)
@@ -58,14 +57,15 @@ class TrackSelector:
         else:
             tracks = np.where((modes == self.mode))[0]
 
-        endcap = np.array(event["EMTFNtuple"].emtfTrack_endcap)[tracks]
-        neg_tracks = self.current_neg_tracks + np.count_nonzero(endcap == -1)
-        pos_tracks = self.current_pos_tracks + np.count_nonzero(endcap == 1)
-        # If processing all the tracks would put us over the limit, skip the event.
-        if self.tracks_per_endcap is not None and (neg_tracks > self.tracks_per_endcap or pos_tracks > self.tracks_per_endcap):
-            return np.empty(0)
-        self.current_neg_tracks = neg_tracks
-        self.current_pos_tracks = pos_tracks
+        if self.tracks_per_endcap is not None:
+            endcap = np.array(event["EMTFNtuple"].emtfTrack_endcap)[tracks]
+            neg_tracks = self.current_neg_tracks + np.count_nonzero(endcap == -1)
+            pos_tracks = self.current_pos_tracks + np.count_nonzero(endcap == 1)
+            # If processing all the tracks would put us over the limit, skip the event.
+            if (neg_tracks > self.tracks_per_endcap or pos_tracks > self.tracks_per_endcap):
+                return np.empty(0)
+            self.current_neg_tracks = neg_tracks
+            self.current_pos_tracks = pos_tracks
 
         return tracks
 
