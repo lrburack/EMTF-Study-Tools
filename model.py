@@ -8,7 +8,7 @@ import numpy as np
 from helpers import get_by_name, permute_together
 import sys
 
-mode = int(sys.argv[1])
+mode = 15
 
 # The study directory to output the results to
 study = "Tutorial/"
