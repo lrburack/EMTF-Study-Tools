@@ -23,7 +23,9 @@ class NewBendTrackSelector(TrackSelector):
         has_GEM_match = np.zeros(len(good_tracks), dtype=bool)
 
         # Candidate GEMs
-        GEM_hitrefs = np.where(np.array(event["EMTFNtuple"].emtfHit_type) == 3)[0]
+        GEM_hitrefs = np.where(np.array(event["EMTFNtuple"].emtfHit_quality) >= 4)[0]
+        if len(GEM_hitrefs) > 0:
+            print(len(GEM_hitrefs))
 
         # Loop through each track which was identified as 'good' and check if it has a matching GEM hit
         for i, track in enumerate(good_tracks):

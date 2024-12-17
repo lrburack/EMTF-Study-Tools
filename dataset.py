@@ -68,7 +68,7 @@ if os.path.exists(os.path.join(config.DATASET_DIRECTORY, name)) and os.path.isdi
 wrapper_dict = {
     'dataset': dataset,
     'base_dirs': base_dirs,
-    'files_per_endcap': 40
+    'files_per_endcap': 1
 }
 
 os.makedirs(os.path.join(config.DATASET_DIRECTORY, name), exist_ok=True)
