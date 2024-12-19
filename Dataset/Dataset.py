@@ -40,18 +40,34 @@ class TrainingVariable:
 
 
 class TrackSelector:
-    def __init__(self, mode: int, include_mode_15: bool = True):
+    def __init__(self, mode: int, include_mode_15: bool = True, tracks_per_endcap=None):
         self.mode = mode
         self.include_mode_15 = include_mode_15
-    
+        self.tracks_per_endcap = tracks_per_endcap
+
+        self.current_pos_tracks = 0
+        self.current_neg_tracks = 0
+
     # Return the valid track indexes
     def select(self, event):
         modes = np.array(event["EMTFNtuple"].emtfTrack_mode)
-        bx = np.array(event["EMTFNtuple"].emtfTrack_bx)
+
         if self.include_mode_15:
-            return np.where(((modes == self.mode) | (modes == 15)) & (bx == 0))[0]
+            tracks = np.where(((modes == self.mode) | (modes == 15)))[0]
         else:
-            return np.where((modes == self.mode) & (bx == 0))[0]
+            tracks = np.where((modes == self.mode))[0]
+
+        if self.tracks_per_endcap is not None:
+            endcap = np.array(event["EMTFNtuple"].emtfTrack_endcap)[tracks]
+            neg_tracks = self.current_neg_tracks + np.count_nonzero(endcap == -1)
+            pos_tracks = self.current_pos_tracks + np.count_nonzero(endcap == 1)
+            # If processing all the tracks would put us over the limit, skip the event.
+            if (neg_tracks > self.tracks_per_endcap or pos_tracks > self.tracks_per_endcap):
+                return np.empty(0)
+            self.current_neg_tracks = neg_tracks
+            self.current_pos_tracks = pos_tracks
+
+        return tracks
 
 
 class SharedInfo:
@@ -91,7 +107,7 @@ class Dataset:
         Initializes the Dataset object with the specified training variables, filters, shared information, and compress option.
 
         :param variables: List of TrainingVariable objects defining the features used in the dataset.
-        :param filters: Optional list of EventFilter objects for filtering the dataset. Defaults to an empty list.
+        :param track_selector: TrackSelector object determining how tracks will be selected for processing. If None, a new TrackSelector object is created.
         :param shared_info: SharedInfo object that provides shared information across different variables. If None, a new SharedInfo object is created.
         :param compress: Boolean indicating whether or not to compress the dataset. Defaults to False.
         """
@@ -163,21 +179,24 @@ class Dataset:
 
         return self.entry
     
-    def build_dataset(self, raw_data: dict) -> np.ndarray:
+    def build_dataset(self, raw_data: dict, events_per_endcap = None) -> np.ndarray:
         """
         Builds the dataset by processing events from the raw input data and applying filters.
 
         :param raw_data: A dictionary where keys are tree names and values are data trees (ROOT TChain objects).
+        :param events_per_endcap: The number of events to process per endcap. If None, all the events will be processed.
         :return: A numpy array containing the processed data for all events that pass the filters. 
                  Rows corresponding to filtered events will contain only zeros.
         """
         tree_names = list(raw_data.keys())
 
+        # Check to make sure all the trees needed by the TrainingVariables are present
         for variable in self.variables:
             for source in variable.tree_sources:
                 if source not in tree_names:
                     raise Exception(f"{type(variable)} requires source {source} which is not present in the input data. Input data has {tree_names}")
 
+        # Check to make sure the number of events in each tree are the same.
         event_count = raw_data[tree_names[0]].GetEntries()
         for tree in tree_names[1:]:
             if raw_data[tree].GetEntries() != event_count:
@@ -188,28 +207,42 @@ class Dataset:
         self.data = np.zeros((track_capacity, self.num_features), dtype='float32')
         self.event_correspondance = np.zeros(track_capacity, dtype=np.int_)
 
+        pos_endcap = 0
+        neg_endcap = 0
+
+        # Loop over all the events
         for event_num in np.arange(event_count):
-        # for self.events_processed, event_num in enumerate(event_processing_order):
             if event_num % PRINT_EVENT == 0:
                 print(f"* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\t | Events processed: {event_num}")
-                print(f"\t* Trainable tracks: {self.tracks_processed}")
+                print(f"\t* Positive endcap: {pos_endcap}\t | Negative endcap: {neg_endcap}")
             
-            # These ROOT objects work in a strange way. raw_data contains the information for all the events, but when we call GetEntry(i), the branches from entry i become accessible
+            # These ROOT objects work in a strange way. raw_data contains the information for all the events, 
+            # but when we call GetEntry(i), the branches from entry i become accessible
             for name in tree_names:
                 raw_data[name].GetEntry(int(event_num))
 
+            # Get the tracks that we need to process (a list of indices)
             good_tracks = self.track_selector.select(raw_data)
             
             # If we've reached our track capacity, we need to enlarge the data array
             if self.tracks_processed + len(good_tracks) > track_capacity:
-                track_capacity *= 2 # Double the length of the arrays
+                print(f"WARNING: Increasing track capacity from {track_capacity} to {track_capacity * 2}")
+                track_capacity *= 2 # Double the length of the arrays. Reallocating memory takes a while so we'll avoid doing it often
                 self.data = np.vstack([self.data, np.zeros((track_capacity - len(self.data), self.num_features), dtype='float32')])
                 self.event_correspondance = np.hstack([self.event_correspondance, np.zeros(track_capacity - len(self.event_correspondance), dtype='bool')])
 
             for track in good_tracks:
+                if track < raw_data["EMTFNtuple"].emtfTrack_size:
+                    if raw_data["EMTFNtuple"].emtfTrack_endcap[int(track)] == -1:
+                        neg_endcap += 1
+                    if raw_data["EMTFNtuple"].emtfTrack_endcap[int(track)] == 1:
+                        pos_endcap += 1
+
+                # Calculate the shared_info which includes information needed by multiple variables (hitrefs, track by default)
                 self.shared_info.calculate(raw_data, track)
                 
                 self.event_correspondance[self.tracks_processed] = event_num
+                # Fill the entry for this track with the calculated features
                 self.data[self.tracks_processed] = self.process_event(raw_data)
                 self.tracks_processed += 1
         
@@ -221,6 +254,7 @@ class Dataset:
 
         print(f"* Finished Training at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"\t* Events processed: {event_num} \t | Trainable tracks: {self.tracks_processed}")
+        print(f"\t* Positive endcap: {pos_endcap}\t | Negative endcap: {neg_endcap}")
 
         return self.data
     
@@ -252,9 +286,9 @@ class Dataset:
         
         :return: None
         """
-        permutation_inds = np.random.permutation(len(self.data))
+        permutation_inds = np.random.permutation(self.tracks_processed)
         self.data = self.data[permutation_inds]
-        self.filtered = self.event_correspondance[permutation_inds]
+        self.event_correspondance = self.event_correspondance[permutation_inds]
 
     @staticmethod
     def get_root(base_dirs: List[str], files_per_endcap: int) -> Tuple[dict, List[str]]:
@@ -326,19 +360,64 @@ class Dataset:
     def combine(cls, datasets: List['Dataset']) -> 'Dataset':
         """
         Combines multiple Dataset objects into a single Dataset object. The datasets must have the same number of events. 
+        This should be used to take datasets made from the same Ntuples and combine their features.
 
         :param datasets: A list of Dataset objects to be combined. All datasets must have the same number of events.
         :return: A new Dataset object that contains the combined variables and data.
         """
         event_correspondance = datasets[0].event_correspondance
 
+        claimed_features = []
         variables = []
-        for dataset in datasets:
-            if dataset.event_correspondance != event_correspondance:
-                raise Exception("Datasets must have an identical event correspondance")
+        use_features_by_dataset = np.empty(len(datasets), dtype=object)
+        for i, dataset in enumerate(datasets):
+            if not np.all(dataset.event_correspondance == event_correspondance):
+                raise Exception(f"Datasets must have an identical event correspondance. \n1: {event_correspondance}\n2: {dataset.event_correspondance}")
 
-            variables.extend(dataset.variables)
+            use_features_by_dataset[i] = np.ones(dataset.num_features, dtype=bool)
+
+            # Add a variable to the list if it doesn't clash with any of the existing ones
+            for variable in dataset.variables:
+                if np.any(np.isin(np.array(variable.feature_names), np.array(claimed_features))):
+                    use_features_by_dataset[i][np.isin(np.array(dataset.feature_names), variable.feature_names)] = False
+                    continue
+
+                variables.extend([variable])
+                claimed_features.extend(variable.feature_names)
+            
         
         new_dataset = cls(variables, datasets[0].track_selector, shared_info=datasets[0].shared_info)
-        new_dataset.data = np.hstack([dataset.data for dataset in datasets])
+        
+        new_dataset.data = np.hstack([datasets[i].data[:, use_features_by_dataset[i]] for i in range(len(datasets))])
+        new_dataset.tracks_processed = datasets[0].tracks_processed
+        new_dataset.events_processed = datasets[0].events_processed
+        new_dataset.event_correspondance = event_correspondance
+        return new_dataset
+    
+    @classmethod
+    def add(cls, datasets: List['Dataset']) -> 'Dataset':
+        """
+        Adds multiple Dataset objects into a single Dataset object. The resulting dataset will contain the features of the first passed dataset. 
+        This should be used to take datasets with the same features calculated from different NTuples and concatenate them to make one bit one.
+
+        :param datasets: A list of Dataset objects to be added. All datasets must have the same features.
+        :return: A new Dataset object that contains the added data.
+        """
+        new_dataset = cls(datasets[0].variables, datasets[0].track_selector, shared_info=datasets[0].shared_info)
+
+        new_data = datasets[0].data
+        new_event_correspondance = datasets[0].event_correspondance
+        new_dataset.events_processed = 0
+        new_dataset.tracks_processed = 0
+        for dataset in datasets:
+            if not np.all(np.isin(np.array(new_dataset.feature_names), np.array(dataset.feature_names))):
+                raise ValueError("Each dataset must have all the features contained in the first dataset")
+
+            new_data = np.vstack((new_data, dataset.data))
+            new_event_correspondance = np.concatenate((new_event_correspondance, dataset.event_correspondance + np.max(new_event_correspondance)))
+            new_dataset.events_processed += dataset.events_processed
+            new_dataset.tracks_processed += dataset.tracks_processed
+                    
+        new_dataset.data = new_data
+        new_dataset.event_correspondance = new_event_correspondance
         return new_dataset
