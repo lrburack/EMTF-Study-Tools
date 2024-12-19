@@ -10,6 +10,8 @@ from Dataset.Default.Variables import *
 from Dataset.Default.SharedInfo import *
 from Dataset.Default.TrackSelectors import *
 from Dataset.AllBranches.Variables import *
+from Dataset.NewBend.TrackSelectors import *
+from Dataset.NewBend.Variables import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--condor", required=False, default=0)
@@ -19,15 +21,13 @@ CONDOR = bool(args.condor)
 
 # --------------------------------------- CHANGE BELOW HERE -----------------------------------------
 
-base_dirs = config.BDT2025
-# base_dirs = config.BDT2025_testing_distribution
+base_dirs = config.wHMT
 
 mode = 15
 
-name = f"Tutorial/mode={mode}"
-# name = f"Tutorial/mode={mode}_testing_distribution"
+name = f"NewBend/mode={mode}"
 
-files_per_endcap = 1
+files_per_endcap = 2
 
 dataset = Dataset(variables=[
                             GeneratorVariables.for_mode(mode), 
@@ -44,8 +44,9 @@ dataset = Dataset(variables=[
                             dPhiSum4A.for_mode(mode),
                             dPhiSum3.for_mode(mode),
                             dPhiSum3A.for_mode(mode),
+                            NewBend()
                             ],
-                track_selector=TrackSelector(mode=mode, include_mode_15=True),
+                track_selector=NewBendTrackSelector(mode=mode, include_mode_15=True, tracks_per_endcap=5000),
                 shared_info=SharedInfo(mode=mode),
                 # compress=True
                 )

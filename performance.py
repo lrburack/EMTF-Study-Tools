@@ -17,10 +17,11 @@ from Performance.scale_factor import *
 # The labels on the left will be used in the figure legends
 predictions = {
 #   "Label"         : "Prediction/name"
-    "Tutorial"      : f"Tutorial/mode=15_prediction.pkl",
+    "Control"      : f"Control/mode=15_prediction.pkl",
+    "New Bend"      : f"NewBend/mode=15_prediction.pkl",
 }
 # The output directory and figure name
-fig_dir = "Tutorial/"
+fig_dir = "NewBend/"
 fig_name = f"mode=15"
 # ------------------------------------- EDIT ABOVE THIS --------------------------------------
 
@@ -34,8 +35,7 @@ eta = np.empty((len(paths)), dtype=object)
 for i in range(len(paths)):
     with open(paths[i], "rb") as file:
         prediction_dict = pickle.load(file)
-    with open(os.path.join(config.DATASET_DIRECTORY, prediction_dict["testing_dataset"], config.WRAPPER_DICT_NAME), "rb") as file:
-        dataset = pickle.load(file)["dataset"]
+    dataset = prediction_dict["testing_dataset"]
 
     # predicted_pts[i] = current_EMTF_scale_pt(prediction_dict["predicted_pt"]) * prediction_dict["predicted_pt"]
     predicted_pts[i] = prediction_dict["predicted_pt"]

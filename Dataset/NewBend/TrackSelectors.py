@@ -7,12 +7,17 @@ from Dataset.NewBend.NewBend_LUT import CSCGEMSlopecorrector
 
 class NewBendTrackSelector(TrackSelector):
     # This is made only for modes which contain station 1.
-    def __init__(self, mode: int, include_mode_15: bool = True, dR_match_max: float = 15):
+    def __init__(self, mode: int, include_mode_15: bool = True, dR_match_max: float = 15, tracks_per_endcap=None):
         if not get_station_presence(mode)[0]:
             raise ValueError("The NewBendTrackSelector can only be used for modes with station 1")
         
-        super().__init__(mode, include_mode_15)
+        super().__init__(mode, include_mode_15=include_mode_15)
         self.dR_match_max = dR_match_max
+        self.nb_tracks_per_endcap = tracks_per_endcap
+        
+        if tracks_per_endcap is not None:
+            self.current_neg_tracks = 0
+            self.current_pos_tracks = 0
 
     def select(self, event: dict):
         # We call the superclass TrackSelector which will just return a list of numbers
@@ -69,8 +74,17 @@ class NewBendTrackSelector(TrackSelector):
                 if dR < self.dR_match_max: # If they match, we can keep this track and skip to checking the next one
                     has_GEM_match[i] = True
                     break
-
         
+        if self.nb_tracks_per_endcap is not None:
+            endcap = np.array(event["EMTFNtuple"].emtfTrack_endcap)[good_tracks[has_GEM_match]]
+            neg_tracks = self.current_neg_tracks + np.count_nonzero(endcap == -1)
+            pos_tracks = self.current_pos_tracks + np.count_nonzero(endcap == 1)
+            # If processing all the tracks would put us over the limit, skip the event.
+            if (neg_tracks > self.nb_tracks_per_endcap or pos_tracks > self.nb_tracks_per_endcap):
+                return np.empty(0)
+            self.current_neg_tracks = neg_tracks
+            self.current_pos_tracks = pos_tracks
+
         return good_tracks[has_GEM_match]
     
 

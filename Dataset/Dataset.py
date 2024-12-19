@@ -253,7 +253,7 @@ class Dataset:
         self.event_correspondance = self.event_correspondance[:self.tracks_processed]
 
         print(f"* Finished Training at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"\t* Events processed: {event_num} \t | Trainable tracks: {self.tracks_processed}")
+        print(f"\t* Events processed: {self.events_processed} \t | Trainable tracks: {self.tracks_processed}")
         print(f"\t* Positive endcap: {pos_endcap}\t | Negative endcap: {neg_endcap}")
 
         return self.data
