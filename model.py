@@ -42,7 +42,7 @@ if isinstance(model, str):  # option 2
     use_features = model.features
 else:                       # option 1
     training_dataset = get_by_name(training_dataset_name)["dataset"]
-    if tracks_to_train == None:
+    if tracks_to_train is None:
         tracks_to_train = np.arange(training_dataset.tracks_processed)
 
     training_events = model.prep_events(training_dataset.data, training_dataset.feature_names)[tracks_to_train]
@@ -58,7 +58,7 @@ else:                       # option 1
 
 # Testing
 testing_dataset = get_by_name(testing_dataset_name)["dataset"]
-if tracks_to_test == None:
+if tracks_to_test is None:
     tracks_to_test = np.arange(testing_dataset.tracks_processed)
 
 testing_events = model.prep_events(testing_dataset.data, testing_dataset.feature_names)[tracks_to_test]
