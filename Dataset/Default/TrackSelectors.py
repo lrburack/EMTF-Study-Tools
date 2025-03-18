@@ -10,6 +10,18 @@ class MaxTrackSelector(TrackSelector):
     def select(self, event):
         good_tracks = super().select(event)
         return good_tracks[:self.max_tracks]
+
+# Imposes that tracks are in the central BX (otherwise we end up with rates 5x what they should be)
+class RatePlotSelector(TrackSelector):
+    def __init__(self, mode: int, max_tracks: int, include_mode_15: bool = True, tracks_per_endcap=None):
+        super().__init__(mode, include_mode_15=include_mode_15, tracks_per_endcap=tracks_per_endcap)
+        self.max_tracks = max_tracks
+    
+    # Return the valid track indexes
+    def select(self, event):
+        good_tracks = super().select(event)
+        zerobx_mask = np.array(event["EMTFNtuple"].emtfTrack_bx)[good_tracks] == 0
+        return good_tracks[zerobx_mask]
     
 # Like nick hurley's old code. Take only one track, but dont impose that its in the central bx
 class OldTrackSelector(TrackSelector):
