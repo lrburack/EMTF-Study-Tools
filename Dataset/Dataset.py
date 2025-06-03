@@ -293,60 +293,61 @@ class Dataset:
     @staticmethod
     def get_root(base_dirs: List[str], files_per_endcap: int) -> Tuple[dict, List[str]]:
         """
-        Builds a dictionary usable by the Dataset class from EMTFNtuple ROOT files. The dictionary key names correspond 
-        to the names of trees (e.g., "EMTFNtuple", "MuShowerNtuple"), and each one contains a TChain object.
+        Builds a dictionary usable by the Dataset class from EMTFNtuple ROOT files. Supports input paths
+        that are either directories or ROOT files directly.
 
-        :param base_dirs: List of base directories containing ROOT files.
+        :param base_dirs: List of base directories or ROOT file paths.
         :param files_per_endcap: Maximum number of files to load for each endcap.
         :return: A tuple containing:
-                 - A dictionary where the keys are tree names (e.g., "EMTFNtuple", "MuShowerNtuple"), 
-                   and the values are TChain objects with concatenated trees.
-                 - A list of file names that were successfully loaded.
+                - A dictionary where the keys are tree names (e.g., "EMTFNtuple", "MuShowerNtuple"), 
+                and the values are TChain objects with concatenated trees.
+                - A list of file names that were successfully loaded.
         """
         event_data = {}
         file_names = []
 
-        for base_dir in base_dirs:
-            nFiles = 0
-            break_loop = False
-            
-            for dirname, dirs, files in os.walk(base_dir):
-                if break_loop: break
-                for file in files:
-                    if break_loop: break
-                    if not file.endswith('.root'): continue
-                    
-                    file_name = os.path.join(dirname, file)
-                    
-                    root_file = ROOT.TFile.Open(file_name)
-                    if not root_file or root_file.IsZombie():
-                        print(f"Warning: Failed to open {file_name}")
-                        continue
-                    
-                    nFiles += 1
-                    print(f'* Loading file #{nFiles}: {file_name}')
-                    file_names.append(file_name)
+        root_files_to_process = []
 
-                    for key in root_file.GetListOfKeys():
-                        obj = key.ReadObj()
+        for path in base_dirs:
+            if os.path.isfile(path) and path.endswith('.root'):
+                root_files_to_process.append(path)
+            elif os.path.isdir(path):
+                for dirname, _, files in os.walk(path):
+                    for file in files:
+                        if file.endswith('.root'):
+                            root_files_to_process.append(os.path.join(dirname, file))
+            else:
+                print(f"Warning: Skipping unrecognized path: {path}")
 
-                        if obj.InheritsFrom("TDirectory"):
-                            dir_name = obj.GetName()
+        # Limit the number of files
+        root_files_to_process = root_files_to_process[:files_per_endcap]
 
-                            tree_name = "tree"
-                            tree_chain_name = f"{dir_name}/{tree_name}"
+        for nFiles, file_name in enumerate(root_files_to_process, start=1):
+            root_file = ROOT.TFile.Open(file_name)
+            if not root_file or root_file.IsZombie():
+                print(f"Warning: Failed to open {file_name}")
+                continue
 
-                            if dir_name not in event_data:
-                                event_data[dir_name] = ROOT.TChain(f"{tree_chain_name}")
+            print(f'* Loading file #{nFiles}: {file_name}')
+            file_names.append(file_name)
 
-                            event_data[dir_name].Add(f"{file_name}/{tree_chain_name}")
+            for key in root_file.GetListOfKeys():
+                obj = key.ReadObj()
 
-                    root_file.Close()
+                if obj.InheritsFrom("TDirectory"):
+                    dir_name = obj.GetName()
 
-                    if nFiles >= files_per_endcap:
-                        break_loop = True
+                    tree_name = "tree"
+                    tree_chain_name = f"{dir_name}/{tree_name}"
 
-        # When working with reemulated data, the branch names will contain Unp (ex emtfUnpTrack instead of emtfTrack). We must create an alias so that the code can work with these NTuples
+                    if dir_name not in event_data:
+                        event_data[dir_name] = ROOT.TChain(tree_chain_name)
+
+                    event_data[dir_name].Add(f"{file_name}/{tree_chain_name}")
+
+            root_file.Close()
+
+        # Set aliases for branches with "Unp" in their names
         for dir_name, tchain in event_data.items():
             for branch in tchain.GetListOfBranches():
                 branch_name = branch.GetName()

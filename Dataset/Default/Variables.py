@@ -570,3 +570,16 @@ class dPhiSum3A(dPhiSum):
         if mode != 15:
             raise Exception("dPhiSum3 is for mode 15 only")
         return cls()
+
+
+# Added for the root_file_predict.py script to know where to put the predicted pt in the root file
+class Track(TrainingVariable):
+    def __init__(self):
+        super().__init__(["track"], tree_sources=["EMTFNtuple"], trainable=False)
+
+    def calculate(self, event):
+        self.feature_inds[0] = int(self.shared_reference.track)
+
+    @classmethod
+    def for_mode(cls, mode):
+        return cls()
