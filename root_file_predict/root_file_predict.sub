@@ -1,0 +1,9 @@
+executable            = $(code_directory)/root_file_predict/root_file_predict.sh
+arguments             = $(code_directory) $(input_dir) $(output_uri) $(unique_name)
+output                = root_file_predict.out
+error                 = root_file_predict.err
+log                   = $(code_directory)/root_file_predict/logs/$(unique_name)/root_file_predict.log
++JobFlavour           = "espresso"
+output_destination    = $(output_uri)
+
+queue

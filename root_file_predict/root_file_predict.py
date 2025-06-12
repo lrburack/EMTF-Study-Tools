@@ -3,6 +3,8 @@ import numpy as np
 import ROOT
 import sys
 
+sys.path.append("/afs/cern.ch/user/l/lburack/work/BDTdev/EMTF-Study-Tools")
+
 from Dataset.Dataset import *
 from Dataset.Default.Variables import *
 from Dataset.Default.SharedInfo import *
@@ -11,7 +13,7 @@ from Dataset.AllBranches.Variables import *
 
 # Script thats easy to run that takes a root file and paths to trained bdts for each mode. 
 # Predicts pt for each track using the correct BDT and puts the result in the root file. 
-# This script is ugly because this codebase was not designed to be used this way.
+# Forgive the ugliness of this script -- this codebase was not designed to be used this way.
 
 # PREP EVERYTHING WE NEED: 
 # 1. A root file with tracks to predict pt for.
@@ -20,7 +22,7 @@ from Dataset.AllBranches.Variables import *
 
 # Only works with one file at a time for now
 base_dirs = [sys.argv[1]]
-print(base_dirs)
+out_path = sys.argv[2]
 
 event_data, file_names = Dataset.get_root(base_dirs, files_per_endcap=1)
 
@@ -105,31 +107,44 @@ from ctypes import pointer
 from array import array
 from ROOT import std
 
-# Open your ROOT file in update mode
-file = ROOT.TFile.Open(file_names[0], "UPDATE")
-tree = file.Get("EMTFNtuple").Get("tree")  # Replace with your actual tree name
+import time
 
-# Create a std::vector<float> for holding predicted pts per event
+start = time.time()
+
+# Open the original ROOT file (read-only)
+input_file = ROOT.TFile.Open(file_names[0], "READ")
+input_tree = input_file.Get("EMTFNtuple/tree")  # Get tree from subdirectory
+
+# Create a new ROOT file in the desired location
+output_file_path = os.path.join(out_path, "modified_file.root")
+output_file = ROOT.TFile.Open(output_file_path, "RECREATE")
+
+# Clone the tree structure but without copying entries yet
+new_tree = input_tree.CloneTree(0)
+
+# Create a std::vector<float> branch to hold predicted pts per event
 pt_vec = std.vector('float')()
+pt_branch = new_tree.Branch("new_predicted_pt", pt_vec)
 
-# Add the branch using the vector
-pt_branch = tree.Branch("new_predicted_pt", pt_vec)
-
-# Fill branch entry-by-entry
-for i_event in range(tree.GetEntries()):
-    tree.GetEntry(i_event)
-
+# Loop over events in original tree, fill new tree with new branch
+for i_event in range(input_tree.GetEntries()):
+    input_tree.GetEntry(i_event)
+    
     pt_vec.clear()
     
-    # You choose how many tracks this event has, based on your data
-    track_pts = predicted_pts[i_event]  # track_pts should be a Python list or array of floats for this event
-    track_pts = track_pts[~np.isnan(track_pts)]  # Remove NaN values if any
+    # Get predicted pts for this event - make sure this matches your data
+    track_pts = predicted_pts[i_event]  # Replace with your predicted pts source
+    track_pts = track_pts[~np.isnan(track_pts)]  # Remove NaNs if needed
+    
     for pt in track_pts:
         pt_vec.push_back(pt)
+    
+    new_tree.Fill()
 
-    pt_branch.Fill()
+# Write new tree and close files
+output_file.cd()
+new_tree.Write()
+output_file.Close()
+input_file.Close()
 
-# Write and close
-file.Get("EMTFNtuple").cd()
-tree.Write("", ROOT.TObject.kOverwrite)
-file.Close()
+print(time.time() - start)
