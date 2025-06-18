@@ -132,12 +132,14 @@ for i_event in range(input_tree.GetEntries()):
     
     pt_vec.clear()
     
-    # Get predicted pts for this event - make sure this matches your data
     track_pts = predicted_pts[i_event]  # Replace with your predicted pts source
-    track_pts = track_pts[~np.isnan(track_pts)]  # Remove NaNs if needed
-    
-    for pt in track_pts:
-        pt_vec.push_back(pt)
+    n_tracks_to_write = getattr(input_tree, 'emtfTrack_size')  # Number of tracks in this event
+
+    for i in range(n_tracks_to_write):
+        if track_pts[i] != np.nan:
+            pt_vec.push_back(track_pts[i])
+        else:
+            pt_vec.push_back(0)
     
     new_tree.Fill()
 
